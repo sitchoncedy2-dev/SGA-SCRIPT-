@@ -1,0 +1,112 @@
+-- This file was Beautified by LeakD | discord.gg/qteAQmfJmP
+
+- - [[ context pretty detected rn and its inall in beta so ermm current unc is id like to say around 70 - 90 % links https: / / khsaeedhub.vercel.app / api / key / raw / https: / / khsaeedhub.vercel.app / https: / / scriptblox.com / u / KhSaeed90 https: / / controlc.com / 5572471c ]]
+while u[ - 46846 - (- 46847)]u003cu[1044994 - 1044992] do
+    local httpres = game:HttpGet("https://sirius.menu/rayfield")
+    local load_2 = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+    local CreateWindow = load_2:CreateWindow({ LoadingTitle ="KhSaeedHub", KeySettings = { Subtitle ="Thank you for your support!", Title ="KhSaeedHub", Key = {"https://khsaeedhub.vercel.app/api/key/raw/"}, GrabKeyFromSite = true, SaveKey = true, FileName ="KhSaeedHub", Note ="https://khsaeedhub.vercel.app/"}, Name ="Legends Of Speed ⚡", KeySystem = true, LoadingSubtitle ="Please, Join discord for more scripts!", Discord = { Enabled = true, RememberJoins = true, Invite ="37xqzu6eBF"}, ConfigurationSaving = { Enabled = true, FileName ="KhSaeedHub"} })
+    local CreateTab = CreateWindow:CreateTab("Main")
+    local RunService = game:GetService("RunService")
+    while u[ - 46846 - (- 46847)]u003cu[1044994 - 1044992] do
+        local CreateToggle = CreateTab:CreateToggle({ CurrentValue = false, Callback = function(...)
+        local conn = RunService.Heartbeat:Connect(function(dt)
+    end
+    )
+end
+end
+, Name ="Auto Collect Orbs", Flag ="Toggle"})
+local conn_2 = RunService.Heartbeat:Connect(function(dt)
+while u[ - 46846 - (- 46847)]u003cu[1044994 - 1044992] do
+    local res = CreateToggle(CreateTab, { CurrentValue = false, Callback = function(...)
+end
+)
+end
+end
+, Name ="Auto Collect Gems", Flag ="Toggle"})
+local res_2 = CreateToggle(CreateTab, { CurrentValue = false, Callback = function(...)
+end
+, Name ="Auto Collect Hoops", Flag ="Toggle"})
+local CreateSection = CreateTab:CreateSection("Rebirth")
+local conn_3 = RunService.Heartbeat:Connect(function(dt)
+while u[ - 46846 - (- 46847)]u003cu[1044994 - 1044992] do
+    local res_3 = CreateToggle(CreateTab, { CurrentValue = false, Callback = function(...)
+end
+)
+end
+end
+, Name ="Auto Rebirth", Flag ="Toggle"})
+local res_4 = CreateSection(CreateTab,"Area, Group Chests")
+local CreateButton = CreateTab:CreateButton({ Name ="Claim All Chests", Callback = function(...)
+end
+})
+local res_5 = CreateTab(CreateWindow,"Race")
+local CreateButton_2 = res_5:CreateButton({ Name ="Join Race", Callback = function(...)
+end
+})
+local CreateButton_3 = res_5:CreateButton({ Name ="Instant Win Race", Callback = function(...)
+end
+})
+local conn_4 = RunService.Heartbeat:Connect(function(dt)
+while u[ - 46846 - (- 46847)]u003cu[1044994 - 1044992] do
+    local CreateToggle_2 = res_5:CreateToggle({ CurrentValue = false, Callback = function(...)
+end
+)
+end
+end
+, Name ="Auto Join and Win Race", Flag ="Toggle"})
+local res_6 = CreateTab(CreateWindow,"Hatch")
+local CreateSection_2 = res_6:CreateSection("Teleport to Cryatl Location")
+local Players = game:GetService("Players")
+while u[ - 46846 - (- 46847)]u003cu[1044994 - 1044992] do
+    local CreateDropdown = res_6:CreateDropdown({ Name ="Crystal Dropdown", CurrentOption = {""}, Flag ="Dropdown", MultipleOptions = false, Callback = function(...)
+    local LocalPlayer = game:GetService("Players").LocalPlayer
+    local Character = LocalPlayer.Character
+end
+end
+, Options = {"Red Crystal","Blue Crystal","Purple Crystal","Yellow Crystal","Lightning Crystal","Snow Crystal","Lava Crystal","Inferno Crystal","Electro Legends Crystal","Jungle Crystal"} })
+local CreateSection_3 = res_6:CreateSection("Instant Single Hatch")
+local CreateButton_4 = res_6:CreateButton({ Name ="Red Crystal (300)", Callback = function(...)
+end
+})
+local CreateButton_5 = res_6:CreateButton({ Name ="Blue Crystal (600)", Callback = function(...)
+end
+})
+local CreateButton_6 = res_6:CreateButton({ Name ="Purple Crystal (1K)", Callback = function(...)
+end
+})
+local CreateButton_7 = res_6:CreateButton({ Name ="Yellow Crystal (1.2K)", Callback = function(...)
+end
+})
+local CreateButton_8 = res_6:CreateButton({ Name ="Lightning Crystal (2.5K)", Callback = function(...)
+end
+})
+local CreateButton_9 = res_6:CreateButton({ Name ="Snow Crystal (4K)", Callback = function(...)
+end
+})
+local CreateButton_10 = res_6:CreateButton({ Name ="Lava Crystal (8K)", Callback = function(...)
+end
+})
+local CreateButton_11 = res_6:CreateButton({ Name ="Inferno Crystal (8K)", Callback = function(...)
+end
+})
+local CreateButton_12 = res_6:CreateButton({ Name ="Electro Legends Crystal (100K)", Callback = function(...)
+end
+})
+local CreateButton_13 = res_6:CreateButton({ Name ="Jungle Crystal (1M)", Callback = function(...)
+end
+})
+local res_7 = CreateTab(CreateWindow,"Credits", 14848261712)
+local CreateSection_4 = res_7:CreateSection("Credits to: KhSaeedHub") setclipboard("https://scriptblox.com/u/KhSaeed90")
+while u[ - 46846 - (- 46847)]u003cu[1044994 - 1044992] do
+    local CreateButton_14 = res_7:CreateButton({ Name ="Scriptblox Profile", Callback = function(...)
+    local Notify = load_2:Notify({ Image = 14848261712, Duration = 5, Title ="Link is copied", Content ="Check scriptblox profile page for more Scripts!"})
+end
+end
+}) setclipboard("https://controlc.com/5572471c")
+while u[ - 46846 - (- 46847)]u003cu[1044994 - 1044992] do
+    local CreateButton_15 = res_7:CreateButton({ Name ="Discord Server", Callback = function(...)
+    local res_8 = Notify(load_2, { Image = 14848261712, Duration = 5, Title ="Link is copied", Content ="Join discord server for more Scripts!"})
+end
+end
+})
+end
