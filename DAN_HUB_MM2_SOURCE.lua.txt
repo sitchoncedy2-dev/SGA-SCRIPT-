@@ -1,0 +1,590 @@
+-- DAN HUB | Murder Mystery 2 v1.0 | Owner: SUN GOD NIKA X IBLAMEKIO
+
+local getgenv = getgenv or function()
+    return _G
+end
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local VirtualUser = game:GetService("VirtualUser")
+local LocalPlayer = Players.LocalPlayer
+
+getgenv().espMurderer = false
+getgenv().espSheriff = false
+getgenv().espInnocent = false
+getgenv().espGun = false
+getgenv().autoCoins = false
+getgenv().killAura = false
+getgenv().autoShoot = false
+getgenv().speedEnabled = false
+getgenv().speedValue = 20
+getgenv().jumpEnabled = false
+getgenv().jumpValue = 50
+
+local startTime = os.time()
+local highlights = {}
+
+LocalPlayer.Idled:Connect(function()
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton2(Vector2.new())
+end)
+
+local function createAfkDisplay(character)
+    if not character then
+        return
+    end
+    local head = character:WaitForChild("Head", 5)
+    if not head or head:FindFirstChild("AFK_Tag") then
+        return
+    end
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "AFK_Tag"
+    billboard.Size = UDim2.new(0, 170, 0, 28)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Parent = head
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = "DAN ANTI-AFK [00:00:00]"
+    label.TextColor3 = Color3.fromRGB(0, 255, 200)
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 12
+    label.TextStrokeTransparency = 0.2
+    label.Parent = billboard
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 1.4
+    stroke.Color = Color3.fromRGB(0, 0, 0)
+    stroke.Parent = label
+    task.spawn(function()
+        while billboard and billboard.Parent do
+            local e = os.time() - startTime
+            local h = math.floor(e / 3600)
+            local m = math.floor((e % 3600) / 60)
+            local s = e % 60
+            label.Text = string.format("DAN ANTI-AFK [%02d:%02d:%02d]", h, m, s)
+            task.wait(1)
+        end
+    end)
+end
+
+if LocalPlayer.Character then
+    createAfkDisplay(LocalPlayer.Character)
+end
+LocalPlayer.CharacterAdded:Connect(createAfkDisplay)
+
+local function getRoot(player)
+    local char = player and player.Character
+    if not char then
+        return nil
+    end
+    return char:FindFirstChild("HumanoidRootPart")
+end
+
+local function getHumanoid(player)
+    local char = player and player.Character
+    if not char then
+        return nil
+    end
+    return char:FindFirstChildOfClass("Humanoid")
+end
+
+local function hasTool(player, namePart)
+    local char = player.Character
+    if not char then
+        return false
+    end
+    for _, item in ipairs(char:GetChildren()) do
+        if item:IsA("Tool") and string.find(string.lower(item.Name), string.lower(namePart)) then
+            return true
+        end
+    end
+    local bp = player:FindFirstChild("Backpack")
+    if bp then
+        for _, item in ipairs(bp:GetChildren()) do
+            if item:IsA("Tool") and string.find(string.lower(item.Name), string.lower(namePart)) then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function getRole(player)
+    if player == LocalPlayer then
+        return "Local"
+    end
+    if hasTool(player, "Knife") then
+        return "Murderer"
+    end
+    if hasTool(player, "Gun") then
+        return "Sheriff"
+    end
+    return "Innocent"
+end
+
+local function clearHighlight(player)
+    if highlights[player] then
+        pcall(function()
+            highlights[player]:Destroy()
+        end)
+        highlights[player] = nil
+    end
+end
+
+local function setHighlight(player, color, enabled)
+    if not enabled then
+        clearHighlight(player)
+        return
+    end
+    local char = player.Character
+    if not char then
+        clearHighlight(player)
+        return
+    end
+    local h = highlights[player]
+    if not h or not h.Parent then
+        h = Instance.new("Highlight")
+        h.Name = "DAN_ESP"
+        h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        h.FillTransparency = 0.5
+        h.OutlineTransparency = 0
+        h.Parent = char
+        highlights[player] = h
+    end
+    h.Adornee = char
+    h.FillColor = color
+    h.OutlineColor = color
+    h.Enabled = true
+end
+
+local function updateESP()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player == LocalPlayer then
+            clearHighlight(player)
+        else
+            local role = getRole(player)
+            if role == "Murderer" and getgenv().espMurderer then
+                setHighlight(player, Color3.fromRGB(255, 0, 0), true)
+            elseif role == "Sheriff" and getgenv().espSheriff then
+                setHighlight(player, Color3.fromRGB(0, 100, 255), true)
+            elseif role == "Innocent" and getgenv().espInnocent then
+                setHighlight(player, Color3.fromRGB(0, 255, 0), true)
+            else
+                clearHighlight(player)
+            end
+        end
+    end
+end
+
+local gunHighlights = {}
+
+local function updateGunESP()
+    for obj, h in pairs(gunHighlights) do
+        if not obj or not obj.Parent then
+            pcall(function()
+                h:Destroy()
+            end)
+            gunHighlights[obj] = nil
+        end
+    end
+    if not getgenv().espGun then
+        for obj, h in pairs(gunHighlights) do
+            pcall(function()
+                h:Destroy()
+            end)
+            gunHighlights[obj] = nil
+        end
+        return
+    end
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        local n = string.lower(obj.Name)
+        if (n == "gundrop" or n == "gun_drop" or string.find(n, "gundrop")) and (obj:IsA("BasePart") or obj:IsA("Model") or obj:IsA("Tool")) then
+            if not gunHighlights[obj] then
+                local h = Instance.new("Highlight")
+                h.Name = "DAN_GUN_ESP"
+                h.FillColor = Color3.fromRGB(0, 255, 255)
+                h.OutlineColor = Color3.fromRGB(0, 200, 200)
+                h.FillTransparency = 0.4
+                h.Adornee = obj
+                h.Parent = obj
+                gunHighlights[obj] = h
+            end
+        end
+    end
+end
+
+task.spawn(function()
+    while true do
+        pcall(updateESP)
+        pcall(updateGunESP)
+        task.wait(0.5)
+    end
+end)
+
+local function collectCoins()
+    local root = getRoot(LocalPlayer)
+    if not root then
+        return
+    end
+    local containers = {
+        workspace:FindFirstChild("CoinContainer"),
+        workspace:FindFirstChild("Coins"),
+        workspace:FindFirstChild("coinContainer")
+    }
+    for _, container in ipairs(containers) do
+        if container then
+            for _, coin in ipairs(container:GetDescendants()) do
+                if coin:IsA("BasePart") and (string.find(string.lower(coin.Name), "coin") or coin.Name == "Coin") then
+                    pcall(function()
+                        if firetouchinterest then
+                            firetouchinterest(root, coin, 0)
+                            firetouchinterest(root, coin, 1)
+                            firetouchinterest(root, coin, 0)
+                        else
+                            root.CFrame = coin.CFrame
+                        end
+                    end)
+                end
+            end
+        end
+    end
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and string.lower(obj.Name) == "coin" then
+            pcall(function()
+                if firetouchinterest then
+                    firetouchinterest(root, obj, 0)
+                    firetouchinterest(root, obj, 1)
+                    firetouchinterest(root, obj, 0)
+                end
+            end)
+        end
+    end
+end
+
+local function teleportToGun()
+    local root = getRoot(LocalPlayer)
+    if not root then
+        return
+    end
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        local n = string.lower(obj.Name)
+        if n == "gundrop" or string.find(n, "gundrop") then
+            local part = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart")
+            if part then
+                root.CFrame = part.CFrame + Vector3.new(0, 3, 0)
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function teleportToRole(roleName)
+    local root = getRoot(LocalPlayer)
+    if not root then
+        return
+    end
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and getRole(player) == roleName then
+            local target = getRoot(player)
+            if target then
+                root.CFrame = target.CFrame + Vector3.new(0, 3, 0)
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function killAuraTick()
+    local myRoot = getRoot(LocalPlayer)
+    local myChar = LocalPlayer.Character
+    if not myRoot or not myChar then
+        return
+    end
+    local knife = myChar:FindFirstChildOfClass("Tool")
+    if not knife or not string.find(string.lower(knife.Name), "knife") then
+        return
+    end
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local target = getRoot(player)
+            if target then
+                local dist = (myRoot.Position - target.Position).Magnitude
+                if dist <= 15 then
+                    pcall(function()
+                        knife:Activate()
+                        if firetouchinterest then
+                            local handle = knife:FindFirstChild("Handle")
+                            if handle then
+                                firetouchinterest(handle, target, 0)
+                                firetouchinterest(handle, target, 1)
+                                firetouchinterest(handle, target, 0)
+                            end
+                        end
+                    end)
+                end
+            end
+        end
+    end
+end
+
+local function autoShootTick()
+    local myChar = LocalPlayer.Character
+    if not myChar then
+        return
+    end
+    local gun = myChar:FindFirstChildOfClass("Tool")
+    if not gun or not string.find(string.lower(gun.Name), "gun") then
+        return
+    end
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and getRole(player) == "Murderer" then
+            local target = getRoot(player)
+            local myRoot = getRoot(LocalPlayer)
+            if target and myRoot then
+                pcall(function()
+                    myRoot.CFrame = CFrame.new(myRoot.Position, target.Position)
+                    gun:Activate()
+                end)
+            end
+        end
+    end
+end
+
+task.spawn(function()
+    while true do
+        if getgenv().autoCoins then
+            pcall(collectCoins)
+        end
+        if getgenv().killAura then
+            pcall(killAuraTick)
+        end
+        if getgenv().autoShoot then
+            pcall(autoShootTick)
+        end
+        if getgenv().speedEnabled then
+            local hum = getHumanoid(LocalPlayer)
+            if hum then
+                hum.WalkSpeed = getgenv().speedValue or 20
+            end
+        end
+        if getgenv().jumpEnabled then
+            local hum = getHumanoid(LocalPlayer)
+            if hum then
+                hum.JumpPower = getgenv().jumpValue or 50
+            end
+        end
+        task.wait(0.15)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    clearHighlight(player)
+end)
+
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+local Window = WindUI:CreateWindow({
+    Title = "DAN HUB",
+    Author = "Murder Mystery 2",
+    Folder = "DANHUB_MM2",
+    Size = UDim2.fromOffset(580, 520),
+    Transparent = true,
+    Theme = "Dark"
+})
+
+local VisualTab = Window:Tab({Title = "Visuals", Icon = "eye"})
+local FarmTab = Window:Tab({Title = "Farm", Icon = "coins"})
+local CombatTab = Window:Tab({Title = "Combat", Icon = "swords"})
+local TeleportTab = Window:Tab({Title = "Teleports", Icon = "map-pin"})
+local PlayerTab = Window:Tab({Title = "Player", Icon = "user"})
+local CreditsTab = Window:Tab({Title = "Credits", Icon = "info"})
+
+VisualTab:Section({Title = "ESP"})
+
+VisualTab:Toggle({
+    Title = "Murderer ESP",
+    Desc = "Red highlight",
+    Value = false,
+    Callback = function(Value)
+        getgenv().espMurderer = Value
+        updateESP()
+    end
+})
+
+VisualTab:Toggle({
+    Title = "Sheriff ESP",
+    Desc = "Blue highlight",
+    Value = false,
+    Callback = function(Value)
+        getgenv().espSheriff = Value
+        updateESP()
+    end
+})
+
+VisualTab:Toggle({
+    Title = "Innocent ESP",
+    Desc = "Green highlight",
+    Value = false,
+    Callback = function(Value)
+        getgenv().espInnocent = Value
+        updateESP()
+    end
+})
+
+VisualTab:Toggle({
+    Title = "Gun Drop ESP",
+    Desc = "Cyan highlight on dropped gun",
+    Value = false,
+    Callback = function(Value)
+        getgenv().espGun = Value
+        updateGunESP()
+    end
+})
+
+FarmTab:Section({Title = "Coins"})
+
+FarmTab:Toggle({
+    Title = "Auto Farm Coins",
+    Desc = "Collects coins on the map",
+    Value = false,
+    Callback = function(Value)
+        getgenv().autoCoins = Value
+    end
+})
+
+CombatTab:Section({Title = "Murderer"})
+
+CombatTab:Toggle({
+    Title = "Knife Kill Aura",
+    Desc = "Attack nearby players (need knife)",
+    Value = false,
+    Callback = function(Value)
+        getgenv().killAura = Value
+    end
+})
+
+CombatTab:Section({Title = "Sheriff"})
+
+CombatTab:Toggle({
+    Title = "Auto Shoot Murderer",
+    Desc = "Face and shoot murderer (need gun)",
+    Value = false,
+    Callback = function(Value)
+        getgenv().autoShoot = Value
+    end
+})
+
+TeleportTab:Section({Title = "Quick TP"})
+
+TeleportTab:Button({
+    Title = "Teleport to Gun Drop",
+    Callback = function()
+        local ok = teleportToGun()
+        WindUI:Notify({
+            Title = "Teleport",
+            Content = ok and "Teleported to gun" or "No gun drop found",
+            Duration = 2
+        })
+    end
+})
+
+TeleportTab:Button({
+    Title = "Teleport to Murderer",
+    Callback = function()
+        local ok = teleportToRole("Murderer")
+        WindUI:Notify({
+            Title = "Teleport",
+            Content = ok and "Teleported to murderer" or "Murderer not found",
+            Duration = 2
+        })
+    end
+})
+
+TeleportTab:Button({
+    Title = "Teleport to Sheriff",
+    Callback = function()
+        local ok = teleportToRole("Sheriff")
+        WindUI:Notify({
+            Title = "Teleport",
+            Content = ok and "Teleported to sheriff" or "Sheriff not found",
+            Duration = 2
+        })
+    end
+})
+
+PlayerTab:Section({Title = "Movement"})
+
+PlayerTab:Toggle({
+    Title = "Custom WalkSpeed",
+    Value = false,
+    Callback = function(Value)
+        getgenv().speedEnabled = Value
+        if not Value then
+            local hum = getHumanoid(LocalPlayer)
+            if hum then
+                hum.WalkSpeed = 16
+            end
+        end
+    end
+})
+
+PlayerTab:Slider({
+    Title = "WalkSpeed",
+    Value = {Min = 16, Max = 50, Default = 20},
+    Callback = function(Value)
+        getgenv().speedValue = Value
+    end
+})
+
+PlayerTab:Toggle({
+    Title = "Custom JumpPower",
+    Value = false,
+    Callback = function(Value)
+        getgenv().jumpEnabled = Value
+        if not Value then
+            local hum = getHumanoid(LocalPlayer)
+            if hum then
+                hum.JumpPower = 50
+            end
+        end
+    end
+})
+
+PlayerTab:Slider({
+    Title = "JumpPower",
+    Value = {Min = 50, Max = 120, Default = 50},
+    Callback = function(Value)
+        getgenv().jumpValue = Value
+    end
+})
+
+CreditsTab:Section({Title = "DAN HUB"})
+CreditsTab:Paragraph({Title = "Owner", Desc = "SUN GOD NIKA X IBLAMEKIO"})
+CreditsTab:Paragraph({Title = "Version", Desc = "1.0 - Murder Mystery 2"})
+CreditsTab:Paragraph({Title = "Game", Desc = "Murder Mystery 2"})
+CreditsTab:Paragraph({Title = "UI Library", Desc = "WindUI by Footagesus"})
+
+CreditsTab:Button({
+    Title = "Copy Owner Name",
+    Callback = function()
+        pcall(function()
+            setclipboard("SUN GOD NIKA X IBLAMEKIO")
+        end)
+        WindUI:Notify({
+            Title = "Credits",
+            Content = "Owner name copied!",
+            Duration = 2
+        })
+    end
+})
+
+WindUI:Notify({
+    Title = "DAN HUB",
+    Content = "Murder Mystery 2 v1.0 loaded",
+    Duration = 4
+})
+
+print("DAN HUB | Murder Mystery 2 v1.0 loaded!")
