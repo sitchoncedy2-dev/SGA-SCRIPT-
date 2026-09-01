@@ -1,0 +1,363 @@
+--[[
+
+Ts Code Was Deobfuscated Using Slayerson âœžâœž Private Deobf
+processed time. 622.94 Ms
+
+Obfuscator: v1.0.0 https://wearedevs.net/obfuscator
+
+-- ]]
+
+repeat task.wait() until game:IsLoaded()
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+local CORRECT_KEY = "DANHUB"
+local GET_KEY_LINK = "https://discord.gg/aePuhCgfcJ"
+
+getgenv().KEY_PASSED = false
+
+local Gui = Instance.new("ScreenGui", game.CoreGui)
+Gui.Name = "DAN KEY"
+Gui.ResetOnSpawn = false
+
+local Main = Instance.new("Frame", Gui)
+Main.Size = UDim2.new(0, 380, 0, 240)
+Main.Position = UDim2.new(0.5, -190, 0.5, -120)
+Main.BackgroundColor3 = Color3.fromRGB(15,15,15)
+Main.BorderSizePixel = 0
+Main.Active = true
+Main.Draggable = true
+
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 14)
+
+local Glow = Instance.new("UIStroke", Main)
+Glow.Thickness = 2
+
+local hue = 0
+RunService.RenderStepped:Connect(function()
+    hue = (hue + 0.002) % 1
+    Glow.Color = Color3.fromHSV(hue, 1, 1)
+end)
+
+local Title = Instance.new("TextLabel", Main)
+Title.Size = UDim2.new(1,0,0,50)
+Title.BackgroundTransparency = 1
+Title.Text = "DAN HUB KEY SYSTEM BRO"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 20
+Title.TextColor3 = Color3.fromRGB(255,255,255)
+
+local Box = Instance.new("TextBox", Main)
+Box.Size = UDim2.new(0.85,0,0,42)
+Box.Position = UDim2.new(0.075,0,0.35,0)
+Box.PlaceholderText = "ENTER KEY"
+Box.Text = ""
+Box.Font = Enum.Font.Gotham
+Box.TextSize = 14
+Box.BackgroundColor3 = Color3.fromRGB(30,30,30)
+Box.TextColor3 = Color3.fromRGB(255,255,255)
+Box.ClearTextOnFocus = false
+Instance.new("UICorner", Box).CornerRadius = UDim.new(0,10)
+
+local Verify = Instance.new("TextButton", Main)
+Verify.Size = UDim2.new(0.4,0,0,38)
+Verify.Position = UDim2.new(0.075,0,0.65,0)
+Verify.Text = "VERIFY"
+Verify.Font = Enum.Font.GothamBold
+Verify.TextSize = 14
+Verify.TextColor3 = Color3.fromRGB(255,255,255)
+Verify.BackgroundColor3 = Color3.fromRGB(40,40,40)
+Instance.new("UICorner", Verify).CornerRadius = UDim.new(0,10)
+
+local GetKey = Instance.new("TextButton", Main)
+GetKey.Size = UDim2.new(0.4,0,0,38)
+GetKey.Position = UDim2.new(0.525,0,0.65,0)
+GetKey.Text = "GET KEY"
+GetKey.Font = Enum.Font.GothamBold
+GetKey.TextSize = 14
+GetKey.TextColor3 = Color3.fromRGB(255,255,255)
+GetKey.BackgroundColor3 = Color3.fromRGB(40,40,40)
+Instance.new("UICorner", GetKey).CornerRadius = UDim.new(0,10)
+
+for _,btn in pairs({Verify, GetKey}) do
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.2), {
+            BackgroundColor3 = Color3.fromRGB(70,70,70)
+        }):Play()
+    end)
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.2), {
+            BackgroundColor3 = Color3.fromRGB(40,40,40)
+        }):Play()
+    end)
+end
+
+local function Shake()
+    for i = 1,8 do
+        Main.Position += UDim2.new(0, (i%2==0 and -6 or 6),0,0)
+        task.wait(0.02)
+    end
+end
+
+Verify.MouseButton1Click:Connect(function()
+    if Box.Text == CORRECT_KEY then
+        getgenv().KEY_PASSED = true
+
+        TweenService:Create(Main, TweenInfo.new(0.5), {
+            BackgroundTransparency = 1
+        }):Play()
+
+        for _,v in pairs(Main:GetChildren()) do
+            if v:IsA("TextLabel") or v:IsA("TextButton") or v:IsA("TextBox") then
+                TweenService:Create(v, TweenInfo.new(0.5), {
+                    TextTransparency = 1,
+                    BackgroundTransparency = 1
+                }):Play()
+            end
+        end
+
+        task.wait(0.6)
+        Gui:Destroy()
+    else
+        Box.Text = ""
+        Box.PlaceholderText = "WRONG KEY!"
+        Shake()
+    end
+end)
+
+GetKey.MouseButton1Click:Connect(function()
+    if setclipboard then
+        setclipboard(GET_KEY_LINK)
+    end
+end)
+
+repeat task.wait() until getgenv().KEY_PASSED == true
+
+-- DAN HUB SELECTOR | Owner: SUN GOD NIKA
+-- Muscle Legends | Murder Mystery 2 | Legends Of Speed
+
+local getgenv = getgenv or function()
+    return _G
+end
+
+if getgenv().DAN_SELECTOR_LOADED then
+    warn("DAN HUB Selector already loaded")
+    return
+end
+getgenv().DAN_SELECTOR_LOADED = true
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+
+local SCRIPTS = {
+    {
+        name = "Muscle Legends",
+        desc = "DAN HUB ML - farm, rocks, pets, rebirth",
+        color = Color3.fromRGB(0, 200, 255),
+        url = "https://raw.githubusercontent.com/sitchoncedy2-dev/SGA-SCRIPT-/refs/heads/main/DAN%20HUB%20(6).txt"
+    },
+    {
+        name = "Murder Mystery 2",
+        desc = "DAN HUB MM2 - ESP, coins, combat",
+        color = Color3.fromRGB(255, 60, 60),
+        url = "https://raw.githubusercontent.com/sitchoncedy2-dev/SGA-SCRIPTS/refs/heads/main/MM2.txt"
+    },
+    {
+        name = "Legends Of Speed",
+        desc = "DAN HUB LOS - orbs, rebirth, crystals",
+        color = Color3.fromRGB(80, 255, 120),
+        url = "https://raw.githubusercontent.com/sitchoncedy2-dev/SGA-SCRIPTS/refs/heads/main/Los%20script%20.txt"
+    }
+}
+
+local function notify(title, text)
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = title,
+            Text = text,
+            Duration = 4
+        })
+    end)
+end
+
+local function loadScript(entry)
+    notify("DAN HUB", "Loading " .. entry.name .. "...")
+    local ok, err = pcall(function()
+        local src = game:HttpGet(entry.url, true)
+        if type(src) ~= "string" or #src < 10 then
+            error("Empty response from server")
+        end
+        local fn, loadErr = loadstring(src)
+        if not fn then
+            error(tostring(loadErr))
+        end
+        fn()
+    end)
+    if ok then
+        notify("DAN HUB", entry.name .. " loaded!")
+    else
+        notify("DAN HUB", "Failed: " .. tostring(err))
+        warn("[DAN HUB Selector] " .. tostring(err))
+    end
+end
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "DAN_HUB_SELECTOR"
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+pcall(function()
+    gui.Parent = game:GetService("CoreGui")
+end)
+if not gui.Parent then
+    pcall(function()
+        gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    end)
+end
+
+local main = Instance.new("Frame")
+main.Name = "Main"
+main.Size = UDim2.new(0, 340, 0, 320)
+main.Position = UDim2.new(0.5, -170, 0.5, -160)
+main.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+main.BorderSizePixel = 0
+main.Active = true
+main.Draggable = true
+main.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = main
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(0, 220, 180)
+stroke.Thickness = 1.5
+stroke.Parent = main
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -50, 0, 44)
+title.Position = UDim2.new(0, 14, 0, 6)
+title.BackgroundTransparency = 1
+title.Text = "DAN HUB SELECTOR"
+title.Font = Enum.Font.GothamBold
+title.TextSize = 18
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = main
+
+local sub = Instance.new("TextLabel")
+sub.Size = UDim2.new(1, -20, 0, 18)
+sub.Position = UDim2.new(0, 14, 0, 42)
+sub.BackgroundTransparency = 1
+sub.Text = "Pick a game script"
+sub.Font = Enum.Font.Gotham
+sub.TextSize = 12
+sub.TextColor3 = Color3.fromRGB(160, 160, 170)
+sub.TextXAlignment = Enum.TextXAlignment.Left
+sub.Parent = main
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 32, 0, 32)
+closeBtn.Position = UDim2.new(1, -40, 0, 10)
+closeBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
+closeBtn.Text = "X"
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 14
+closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeBtn.Parent = main
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 8)
+closeBtn.MouseButton1Click:Connect(function()
+    gui:Destroy()
+    getgenv().DAN_SELECTOR_LOADED = nil
+end)
+
+local list = Instance.new("Frame")
+list.Size = UDim2.new(1, -28, 1, -80)
+list.Position = UDim2.new(0, 14, 0, 70)
+list.BackgroundTransparency = 1
+list.Parent = main
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 10)
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Parent = list
+
+for i, entry in ipairs(SCRIPTS) do
+    local btn = Instance.new("TextButton")
+    btn.Name = entry.name
+    btn.Size = UDim2.new(1, 0, 0, 64)
+    btn.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
+    btn.BorderSizePixel = 0
+    btn.AutoButtonColor = false
+    btn.Text = ""
+    btn.LayoutOrder = i
+    btn.Parent = list
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
+
+    local accent = Instance.new("Frame")
+    accent.Size = UDim2.new(0, 4, 1, -12)
+    accent.Position = UDim2.new(0, 6, 0, 6)
+    accent.BackgroundColor3 = entry.color
+    accent.BorderSizePixel = 0
+    accent.Parent = btn
+    Instance.new("UICorner", accent).CornerRadius = UDim.new(0, 2)
+
+    local nameLbl = Instance.new("TextLabel")
+    nameLbl.Size = UDim2.new(1, -24, 0, 24)
+    nameLbl.Position = UDim2.new(0, 18, 0, 10)
+    nameLbl.BackgroundTransparency = 1
+    nameLbl.Text = entry.name
+    nameLbl.Font = Enum.Font.GothamBold
+    nameLbl.TextSize = 15
+    nameLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+    nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+    nameLbl.Parent = btn
+
+    local descLbl = Instance.new("TextLabel")
+    descLbl.Size = UDim2.new(1, -24, 0, 20)
+    descLbl.Position = UDim2.new(0, 18, 0, 34)
+    descLbl.BackgroundTransparency = 1
+    descLbl.Text = entry.desc
+    descLbl.Font = Enum.Font.Gotham
+    descLbl.TextSize = 11
+    descLbl.TextColor3 = Color3.fromRGB(150, 150, 160)
+    descLbl.TextXAlignment = Enum.TextXAlignment.Left
+    descLbl.Parent = btn
+
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.15), {
+            BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+        }):Play()
+    end)
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.15), {
+            BackgroundColor3 = Color3.fromRGB(28, 28, 34)
+        }):Play()
+    end)
+
+    btn.MouseButton1Click:Connect(function()
+        btn.Text = ""
+        nameLbl.Text = "Loading..."
+        task.spawn(function()
+            loadScript(entry)
+            nameLbl.Text = entry.name
+        end)
+    end)
+end
+
+local credit = Instance.new("TextLabel")
+credit.Size = UDim2.new(1, -20, 0, 16)
+credit.Position = UDim2.new(0, 10, 1, -22)
+credit.BackgroundTransparency = 1
+credit.Text = "SUN GOD NIKA"
+credit.Font = Enum.Font.Gotham
+credit.TextSize = 10
+credit.TextColor3 = Color3.fromRGB(100, 100, 110)
+credit.Parent = main
+
+notify("DAN HUB", "Selector ready - pick a game")
+print("DAN HUB SELECTOR loaded")
