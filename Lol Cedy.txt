@@ -1,0 +1,951 @@
+-- Encrypted Hub · Control Europe
+-- Key: VSP | Discord: https://discord.gg/suCUkHNZmv
+-- Delta-safe · no Luau types
+
+if not table.clear then
+	function table.clear(t) for k in pairs(t) do t[k] = nil end end
+end
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+local VirtualUser = game:GetService("VirtualUser")
+local TeleportService = game:GetService("TeleportService")
+local Workspace = game:GetService("Workspace")
+local CoreGui = game:GetService("CoreGui")
+local HttpService = game:GetService("HttpService")
+
+local LP = Players.LocalPlayer
+local KEY = "VSP"
+local DISCORD = "https://discord.gg/suCUkHNZmv"
+
+local S = {
+	alive = true,
+	autoSpawn = false,
+	autoUpgrade = false,
+	autoCapture = false,
+	autoResearch = false,
+	antiAfk = true,
+	spawnAmount = 50000,
+	spawnType = "Soldier",
+	upgradeDelay = 1.2,
+	spawnDelay = 0.8,
+	myCountry = nil,
+	remotes = {},
+	flags = {},
+}
+
+local function notify(title, text)
+	pcall(function()
+		StarterGui:SetCore("SendNotification", {
+			Title = tostring(title),
+			Text = tostring(text),
+			Duration = 3,
+		})
+	end)
+end
+
+-- ===================== REMOTE ENGINE =====================
+local function collectRemotes()
+	local list = {}
+	local function add(inst)
+		if not inst then return end
+		if inst:IsA("RemoteEvent") or inst:IsA("RemoteFunction") then
+			table.insert(list, inst)
+		end
+	end
+	for _, d in ipairs(ReplicatedStorage:GetDescendants()) do
+		if d:IsA("RemoteEvent") or d:IsA("RemoteFunction") then
+			add(d)
+		end
+	end
+	-- common numbered remotes used by CE scripts
+	for i = 1, 12 do
+		add(ReplicatedStorage:FindFirstChild("RemoteEvent_" .. i))
+		add(ReplicatedStorage:FindFirstChild("RemoteFunction_" .. i))
+		add(ReplicatedStorage:FindFirstChild("RE_" .. i))
+		add(ReplicatedStorage:FindFirstChild("RF_" .. i))
+	end
+	S.remotes = list
+	return list
+end
+
+local function fireAll(actionNames, args)
+	args = args or {}
+	local remotes = S.remotes
+	if not remotes or #remotes == 0 then
+		remotes = collectRemotes()
+	end
+	for _, name in ipairs(actionNames) do
+		for _, remote in ipairs(remotes) do
+			pcall(function()
+				if remote:IsA("RemoteEvent") then
+					remote:FireServer(name, unpack(args))
+					remote:FireServer(name, args)
+					if #args > 0 then
+						remote:FireServer(unpack(args))
+					end
+				elseif remote:IsA("RemoteFunction") then
+					remote:InvokeServer(name, unpack(args))
+					remote:InvokeServer(name, args)
+				end
+			end)
+		end
+		-- also try Packages/Networking style modules
+		pcall(function()
+			local net = ReplicatedStorage:FindFirstChild("Networking", true)
+				or ReplicatedStorage:FindFirstChild("Network", true)
+				or ReplicatedStorage:FindFirstChild("Remotes", true)
+			if net then
+				local r = net:FindFirstChild(name, true)
+				if r then
+					if r:IsA("RemoteEvent") then r:FireServer(unpack(args)) end
+					if r:IsA("RemoteFunction") then r:InvokeServer(unpack(args)) end
+				end
+			end
+		end)
+	end
+end
+
+local function getMyCountry()
+	-- try player attributes / values
+	local c = nil
+	pcall(function()
+		c = LP:GetAttribute("Country") or LP:GetAttribute("country")
+	end)
+	if c and tostring(c) ~= "" then
+		S.myCountry = tostring(c)
+		return S.myCountry
+	end
+	pcall(function()
+		local v = LP:FindFirstChild("Country") or LP:FindFirstChild("country")
+		if v and v:IsA("ValueBase") then
+			S.myCountry = tostring(v.Value)
+		end
+	end)
+	if S.myCountry then return S.myCountry end
+	-- scan regions for leaderstats-like ownership
+	pcall(function()
+		local folder = Workspace:FindFirstChild("Regions")
+			or Workspace:FindFirstChild("Tiles")
+			or Workspace:FindFirstChild("Cities")
+			or Workspace:FindFirstChild("Map")
+		if not folder then return end
+		-- can't know country without data - leave nil
+	end)
+	return S.myCountry
+end
+
+local function getOwnedRegions()
+	local owned = {}
+	local country = getMyCountry()
+	local folders = {
+		Workspace:FindFirstChild("Regions"),
+		Workspace:FindFirstChild("Tiles"),
+		Workspace:FindFirstChild("Cities"),
+		Workspace:FindFirstChild("Map"),
+		Workspace:FindFirstChild("Countries"),
+	}
+	for _, folder in ipairs(folders) do
+		if folder then
+			for _, region in ipairs(folder:GetChildren()) do
+				local ok = false
+				local c = region:FindFirstChild("Country") or region:FindFirstChild("Owner") or region:FindFirstChild("owner")
+				if c and country and tostring(c.Value) == tostring(country) then
+					ok = true
+				end
+				if region:GetAttribute("Country") and country and tostring(region:GetAttribute("Country")) == tostring(country) then
+					ok = true
+				end
+				if ok then
+					table.insert(owned, region)
+				end
+			end
+		end
+	end
+	return owned
+end
+
+local function getMySoldiers()
+	local list = {}
+	local country = getMyCountry()
+	local folders = {
+		Workspace:FindFirstChild("SoldiersFolder"),
+		Workspace:FindFirstChild("Soldiers"),
+		Workspace:FindFirstChild("Armies"),
+		Workspace:FindFirstChild("Troops"),
+		Workspace:FindFirstChild("Units"),
+	}
+	for _, folder in ipairs(folders) do
+		if folder then
+			for _, unit in ipairs(folder:GetChildren()) do
+				local c = unit:FindFirstChild("Country") or unit:FindFirstChild("Owner")
+				if c and country and tostring(c.Value) == tostring(country) then
+					table.insert(list, unit)
+				elseif unit:GetAttribute("Country") and country and tostring(unit:GetAttribute("Country")) == tostring(country) then
+					table.insert(list, unit)
+				end
+			end
+		end
+	end
+	return list
+end
+
+-- ===================== FEATURE ACTIONS =====================
+local function spawnOnAllRegions()
+	local owned = getOwnedRegions()
+	local amount = S.spawnAmount or 50000
+	local unitType = S.spawnType or "Soldier"
+	local names = {
+		"CreateArmyOnTile", "PlaceTroops", "Recruit", "SpawnSoldiers", "AddArmy",
+		"SpawnArmy", "CreateArmy", "MultiSpawn", "SpawnUnit", "DeployArmy",
+	}
+	local n = 0
+	if #owned == 0 then
+		-- still fire generic spawn
+		fireAll(names, {unitType, amount})
+		fireAll(names, {amount, unitType})
+		notify("Spawn", "No owned tiles found — fired generic")
+		return
+	end
+	for _, region in ipairs(owned) do
+		fireAll(names, {region, unitType, amount})
+		fireAll(names, {region.Name, unitType, amount})
+		fireAll(names, {region, amount})
+		n = n + 1
+		task.wait(S.spawnDelay or 0.35)
+	end
+	notify("Spawn", "Sent to " .. n .. " regions")
+end
+
+local function reinforceAll()
+	local units = getMySoldiers()
+	local names = {"AddToArmy", "AddUnits", "Reinforce", "SpawnSoldiers", "CreateArmyOnTile"}
+	local n = 0
+	for _, unit in ipairs(units) do
+		local cur = unit:FindFirstChild("TotalAmount") or unit:FindFirstChild("Amount") or unit:FindFirstChild("Size")
+		local amt = (cur and tonumber(cur.Value)) or 1000
+		fireAll(names, {unit, S.spawnType or "Soldier", amt + (S.spawnAmount or 25000)})
+		n = n + 1
+		task.wait(0.2)
+	end
+	notify("Reinforce", n .. " stacks")
+end
+
+local function upgradeAllCities()
+	local owned = getOwnedRegions()
+	local names = {
+		"UpgradeCity", "UpgradeTier", "UpgradeDefense", "Upgrade",
+		"CityUpgrade", "DevelopCity", "MaxUpgrade", "UpgradeBuilding",
+	}
+	local n = 0
+	if #owned == 0 then
+		fireAll(names, {})
+		fireAll({"UpgradeAll", "MassUpgrade", "UpgradeEverything"}, {})
+		notify("Upgrade", "Generic upgrade fired")
+		return
+	end
+	for _, region in ipairs(owned) do
+		fireAll(names, {region})
+		fireAll(names, {region.Name})
+		fireAll(names, {region, "Tier"})
+		fireAll(names, {region, "Defense"})
+		n = n + 1
+		task.wait(S.upgradeDelay or 0.5)
+	end
+	notify("Upgrade", n .. " cities")
+end
+
+local function autoResearchOnce()
+	local names = {
+		"Research", "StartResearch", "UnlockTech", "BuyTech",
+		"Technology", "ResearchTech", "AutoResearch",
+	}
+	fireAll(names, {})
+	fireAll(names, {"Infantry"})
+	fireAll(names, {"Damage"})
+	fireAll(names, {"Speed"})
+	fireAll(names, {1})
+	fireAll(names, {2})
+end
+
+local function tryJustifyWar()
+	local names = {"JustifyWar", "Justify", "StartJustify", "WarJustify"}
+	fireAll(names, {})
+end
+
+local function tryDeclareWar()
+	local names = {"DeclareWar", "StartWar", "WarDeclare", "Declare"}
+	fireAll(names, {})
+end
+
+local function tryAutoCapture()
+	local names = {
+		"AutoCapture", "Capture", "CaptureTile", "ClaimTile",
+		"MoveArmy", "AttackTile", "OrderCapture",
+	}
+	local units = getMySoldiers()
+	for _, unit in ipairs(units) do
+		fireAll(names, {unit})
+		fireAll(names, {unit, true})
+		task.wait(0.15)
+	end
+	if #units == 0 then
+		fireAll(names, {true})
+		fireAll({"EnableAutoCapture", "SetAutoCapture"}, {true})
+	end
+end
+
+local function stopAllSoldiers()
+	local names = {"StopArmy", "StopSoldiers", "Halt", "StopAll", "CancelOrders"}
+	local units = getMySoldiers()
+	for _, unit in ipairs(units) do
+		fireAll(names, {unit})
+	end
+	fireAll(names, {})
+	notify("Army", "Stop sent")
+end
+
+-- ===================== THEME + KEY UI =====================
+local THEMES = {
+	Space = {bg=Color3.fromRGB(8,10,22),panel=Color3.fromRGB(14,16,32),accent=Color3.fromRGB(90,140,255),text=Color3.fromRGB(230,235,255),muted=Color3.fromRGB(140,150,180),tab=Color3.fromRGB(20,24,45),tabActive=Color3.fromRGB(40,50,90),on=Color3.fromRGB(50,200,120),off=Color3.fromRGB(200,60,80)},
+	Crimson = {bg=Color3.fromRGB(18,8,10),panel=Color3.fromRGB(32,14,16),accent=Color3.fromRGB(255,70,90),text=Color3.fromRGB(255,235,235),muted=Color3.fromRGB(180,140,145),tab=Color3.fromRGB(45,20,24),tabActive=Color3.fromRGB(90,30,40),on=Color3.fromRGB(50,200,120),off=Color3.fromRGB(200,60,80)},
+	Emerald = {bg=Color3.fromRGB(6,16,12),panel=Color3.fromRGB(12,28,20),accent=Color3.fromRGB(60,220,140),text=Color3.fromRGB(230,255,240),muted=Color3.fromRGB(140,180,160),tab=Color3.fromRGB(16,36,28),tabActive=Color3.fromRGB(30,70,50),on=Color3.fromRGB(50,200,120),off=Color3.fromRGB(200,60,80)},
+	Violet = {bg=Color3.fromRGB(14,8,22),panel=Color3.fromRGB(24,14,36),accent=Color3.fromRGB(180,100,255),text=Color3.fromRGB(240,230,255),muted=Color3.fromRGB(160,140,180),tab=Color3.fromRGB(30,20,48),tabActive=Color3.fromRGB(60,40,90),on=Color3.fromRGB(50,200,120),off=Color3.fromRGB(200,60,80)},
+	Midnight = {bg=Color3.fromRGB(4,6,12),panel=Color3.fromRGB(10,12,22),accent=Color3.fromRGB(100,160,255),text=Color3.fromRGB(220,230,255),muted=Color3.fromRGB(120,130,160),tab=Color3.fromRGB(14,16,28),tabActive=Color3.fromRGB(28,36,60),on=Color3.fromRGB(50,200,120),off=Color3.fromRGB(200,60,80)},
+}
+local COLORS = THEMES.Space
+local function applyTheme(n) if THEMES[n] then COLORS = THEMES[n] end end
+
+local function corner(p, r)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, r or 10)
+	c.Parent = p
+end
+local function stroke(p, col, th)
+	local s = Instance.new("UIStroke")
+	s.Color = col or COLORS.accent
+	s.Thickness = th or 1.4
+	s.Parent = p
+	return s
+end
+
+local parentGui = CoreGui
+pcall(function()
+	if type(gethui) == "function" then
+		local g = gethui()
+		if g then parentGui = g end
+	end
+end)
+
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "EncryptedHub_CE"
+Gui.ResetOnSpawn = false
+Gui.IgnoreGuiInset = true
+Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+Gui.DisplayOrder = 120
+Gui.Parent = parentGui
+
+local Dim = Instance.new("Frame", Gui)
+Dim.Size = UDim2.fromScale(1, 1)
+Dim.BackgroundColor3 = Color3.new(0, 0, 0)
+Dim.BackgroundTransparency = 0.45
+Dim.BorderSizePixel = 0
+
+local vp = (Workspace.CurrentCamera and Workspace.CurrentCamera.ViewportSize) or Vector2.new(800, 600)
+local mobile = (UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled) or vp.X < 700
+local CW = mobile and math.min(vp.X - 24, 360) or 380
+local CH = mobile and math.min(vp.Y * 0.72, 440) or 400
+
+local Gate = Instance.new("Frame", Gui)
+Gate.Size = UDim2.fromOffset(CW, CH)
+Gate.Position = UDim2.fromScale(0.5, 0.5)
+Gate.AnchorPoint = Vector2.new(0.5, 0.5)
+Gate.BackgroundColor3 = COLORS.bg
+Gate.BorderSizePixel = 0
+corner(Gate, 16)
+stroke(Gate, COLORS.accent, 2)
+
+local GatePage = Instance.new("Frame", Gate)
+GatePage.Size = UDim2.fromScale(1, 1)
+GatePage.BackgroundTransparency = 1
+
+local Main, pages, tabButtons = nil, {}, {}
+local unlocked = false
+
+local function buildMain()
+	local mainW = mobile and math.min(vp.X - 16, 540) or 580
+	local mainH = mobile and math.min(vp.Y * 0.8, 480) or 440
+	Main = Instance.new("Frame", Gui)
+	Main.Size = UDim2.fromOffset(mainW, mainH)
+	Main.Position = UDim2.fromScale(0.5, 0.5)
+	Main.AnchorPoint = Vector2.new(0.5, 0.5)
+	Main.BackgroundColor3 = COLORS.bg
+	Main.BorderSizePixel = 0
+	Main.Visible = false
+	Main.Active = true
+	corner(Main, 14)
+	stroke(Main, COLORS.accent, 1.5)
+
+	local Header = Instance.new("Frame", Main)
+	Header.Size = UDim2.new(1, 0, 0, 42)
+	Header.BackgroundColor3 = COLORS.panel
+	Header.BorderSizePixel = 0
+	corner(Header, 14)
+
+	local Title = Instance.new("TextLabel", Header)
+	Title.Size = UDim2.new(1, -90, 1, 0)
+	Title.Position = UDim2.fromOffset(14, 0)
+	Title.BackgroundTransparency = 1
+	Title.Text = "Encrypted Hub  ·  Control Europe"
+	Title.Font = Enum.Font.GothamBold
+	Title.TextSize = 14
+	Title.TextColor3 = COLORS.accent
+	Title.TextXAlignment = Enum.TextXAlignment.Left
+
+	local closeBtn = Instance.new("TextButton", Header)
+	closeBtn.Size = UDim2.fromOffset(32, 28)
+	closeBtn.Position = UDim2.new(1, -40, 0.5, -14)
+	closeBtn.BackgroundColor3 = COLORS.off
+	closeBtn.Text = "X"
+	closeBtn.Font = Enum.Font.GothamBold
+	closeBtn.TextSize = 14
+	closeBtn.TextColor3 = Color3.new(1, 1, 1)
+	corner(closeBtn, 8)
+	closeBtn.MouseButton1Click:Connect(function()
+		Main.Visible = not Main.Visible
+	end)
+
+	local TabBar = Instance.new("ScrollingFrame", Main)
+	TabBar.Size = UDim2.new(0, mobile and 100 or 120, 1, -50)
+	TabBar.Position = UDim2.fromOffset(8, 48)
+	TabBar.BackgroundColor3 = COLORS.panel
+	TabBar.BorderSizePixel = 0
+	TabBar.ScrollBarThickness = 2
+	TabBar.CanvasSize = UDim2.fromOffset(0, 400)
+	corner(TabBar, 10)
+	local tabLay = Instance.new("UIListLayout", TabBar)
+	tabLay.Padding = UDim.new(0, 4)
+	tabLay.SortOrder = Enum.SortOrder.LayoutOrder
+	Instance.new("UIPadding", TabBar).PaddingTop = UDim.new(0, 6)
+
+	local Content = Instance.new("Frame", Main)
+	Content.Size = UDim2.new(1, mobile and -118 or -140, 1, -56)
+	Content.Position = UDim2.fromOffset(mobile and 110 or 132, 48)
+	Content.BackgroundColor3 = COLORS.panel
+	Content.BorderSizePixel = 0
+	corner(Content, 10)
+
+	local function makePage(name)
+		local sc = Instance.new("ScrollingFrame")
+		sc.Name = name
+		sc.Size = UDim2.fromScale(1, 1)
+		sc.BackgroundTransparency = 1
+		sc.BorderSizePixel = 0
+		sc.ScrollBarThickness = 3
+		sc.CanvasSize = UDim2.new(0, 0, 0, 0)
+		sc.Visible = false
+		sc.Parent = Content
+		local lay = Instance.new("UIListLayout", sc)
+		lay.Padding = UDim.new(0, 6)
+		lay.SortOrder = Enum.SortOrder.LayoutOrder
+		local pad = Instance.new("UIPadding", sc)
+		pad.PaddingTop = UDim.new(0, 8)
+		pad.PaddingLeft = UDim.new(0, 8)
+		pad.PaddingRight = UDim.new(0, 8)
+		lay:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+			sc.CanvasSize = UDim2.new(0, 0, 0, lay.AbsoluteContentSize.Y + 16)
+		end)
+		pages[name] = sc
+		return sc
+	end
+
+	local function selectTab(name)
+		for n, p in pairs(pages) do p.Visible = (n == name) end
+		for n, b in pairs(tabButtons) do
+			b.BackgroundColor3 = (n == name) and COLORS.tabActive or COLORS.tab
+			b.TextColor3 = (n == name) and COLORS.accent or COLORS.muted
+		end
+	end
+
+	local function addTab(name, order)
+		local b = Instance.new("TextButton")
+		b.Size = UDim2.new(1, 0, 0, 28)
+		b.BackgroundColor3 = COLORS.tab
+		b.Text = name
+		b.TextColor3 = COLORS.muted
+		b.Font = Enum.Font.GothamBold
+		b.TextSize = 11
+		b.LayoutOrder = order
+		b.Parent = TabBar
+		corner(b, 8)
+		tabButtons[name] = b
+		makePage(name)
+		b.MouseButton1Click:Connect(function() selectTab(name) end)
+		TabBar.CanvasSize = UDim2.fromOffset(0, order * 34 + 20)
+	end
+
+	for i, n in ipairs({"Army", "Economy", "War", "Tech", "Misc", "Credits"}) do
+		addTab(n, i)
+	end
+
+	local function section(page, text, order)
+		local l = Instance.new("TextLabel")
+		l.Size = UDim2.new(1, -8, 0, 22)
+		l.BackgroundTransparency = 1
+		l.Text = text
+		l.Font = Enum.Font.GothamBold
+		l.TextSize = 12
+		l.TextColor3 = COLORS.accent
+		l.TextXAlignment = Enum.TextXAlignment.Left
+		l.LayoutOrder = order
+		l.Parent = page
+	end
+
+	local function toggle(page, label, order, default, cb)
+		local row = Instance.new("TextButton")
+		row.Size = UDim2.new(1, -8, 0, 32)
+		row.BackgroundColor3 = Color3.fromRGB(18, 20, 36)
+		row.Text = ""
+		row.AutoButtonColor = false
+		row.LayoutOrder = order
+		row.Parent = page
+		corner(row, 8)
+		local lab = Instance.new("TextLabel", row)
+		lab.Size = UDim2.new(1, -50, 1, 0)
+		lab.Position = UDim2.fromOffset(10, 0)
+		lab.BackgroundTransparency = 1
+		lab.Text = label
+		lab.Font = Enum.Font.Gotham
+		lab.TextSize = 12
+		lab.TextColor3 = COLORS.text
+		lab.TextXAlignment = Enum.TextXAlignment.Left
+		local state = default and true or false
+		local pill = Instance.new("Frame", row)
+		pill.Size = UDim2.fromOffset(36, 18)
+		pill.Position = UDim2.new(1, -44, 0.5, -9)
+		pill.BackgroundColor3 = state and COLORS.on or COLORS.off
+		pill.BorderSizePixel = 0
+		corner(pill, 9)
+		row.MouseButton1Click:Connect(function()
+			state = not state
+			pill.BackgroundColor3 = state and COLORS.on or COLORS.off
+			if cb then pcall(cb, state) end
+		end)
+	end
+
+	local function button(page, label, order, cb)
+		local b = Instance.new("TextButton")
+		b.Size = UDim2.new(1, -8, 0, 32)
+		b.BackgroundColor3 = COLORS.tab
+		b.Text = label
+		b.Font = Enum.Font.GothamBold
+		b.TextSize = 12
+		b.TextColor3 = COLORS.text
+		b.LayoutOrder = order
+		b.Parent = page
+		corner(b, 8)
+		stroke(b, COLORS.accent, 1)
+		b.MouseButton1Click:Connect(function()
+			if cb then pcall(cb) end
+		end)
+	end
+
+	local function numberBox(page, label, order, default, minV, maxV, onApply)
+		local hold = Instance.new("Frame")
+		hold.Size = UDim2.new(1, -8, 0, 56)
+		hold.BackgroundColor3 = Color3.fromRGB(18, 20, 36)
+		hold.LayoutOrder = order
+		hold.Parent = page
+		corner(hold, 8)
+		local lab = Instance.new("TextLabel", hold)
+		lab.Size = UDim2.new(1, -16, 0, 18)
+		lab.Position = UDim2.fromOffset(8, 4)
+		lab.BackgroundTransparency = 1
+		lab.Text = label
+		lab.Font = Enum.Font.Gotham
+		lab.TextSize = 11
+		lab.TextColor3 = COLORS.muted
+		lab.TextXAlignment = Enum.TextXAlignment.Left
+		local box = Instance.new("TextBox", hold)
+		box.Size = UDim2.new(1, -90, 0, 26)
+		box.Position = UDim2.fromOffset(8, 24)
+		box.BackgroundColor3 = COLORS.panel
+		box.Text = tostring(default)
+		box.PlaceholderText = minV .. " - " .. maxV
+		box.Font = Enum.Font.GothamMedium
+		box.TextSize = 13
+		box.TextColor3 = COLORS.text
+		box.ClearTextOnFocus = false
+		corner(box, 6)
+		local apply = Instance.new("TextButton", hold)
+		apply.Size = UDim2.fromOffset(70, 26)
+		apply.Position = UDim2.new(1, -78, 0, 24)
+		apply.BackgroundColor3 = COLORS.accent
+		apply.Text = "Apply"
+		apply.Font = Enum.Font.GothamBold
+		apply.TextSize = 12
+		apply.TextColor3 = Color3.new(1, 1, 1)
+		corner(apply, 6)
+		local function doApply()
+			local n = tonumber(box.Text)
+			if not n then notify("Input", "Number only") return end
+			n = math.clamp(n, minV, maxV)
+			box.Text = tostring(n)
+			if onApply then pcall(onApply, n) end
+			notify(label, "Set " .. n)
+		end
+		apply.MouseButton1Click:Connect(doApply)
+		box.FocusLost:Connect(function(enter) if enter then doApply() end end)
+	end
+
+	-- ARMY
+	local army = pages["Army"]
+	section(army, "SPAWN", 1)
+	toggle(army, "Auto Spawn (loop)", 2, false, function(on) S.autoSpawn = on end)
+	button(army, "Spawn Once (All Regions)", 3, function()
+		collectRemotes()
+		getMyCountry()
+		spawnOnAllRegions()
+	end)
+	button(army, "Reinforce All Troops", 4, function()
+		collectRemotes()
+		reinforceAll()
+	end)
+	button(army, "Stop All Soldiers", 5, function()
+		collectRemotes()
+		stopAllSoldiers()
+	end)
+	button(army, "Unit: Soldier", 6, function() S.spawnType = "Soldier" notify("Unit", "Soldier") end)
+	button(army, "Unit: Tank", 7, function() S.spawnType = "Tank" notify("Unit", "Tank") end)
+	button(army, "Unit: Artillery", 8, function() S.spawnType = "Artillery" notify("Unit", "Artillery") end)
+	numberBox(army, "Spawn Amount", 9, 50000, 1000, 9999999, function(n) S.spawnAmount = n end)
+	numberBox(army, "Spawn Delay (sec)", 10, 0.8, 0.2, 5, function(n) S.spawnDelay = n end)
+	button(army, "Refresh Country / Remotes", 11, function()
+		collectRemotes()
+		local c = getMyCountry()
+		notify("Info", "Country: " .. tostring(c or "?") .. " | Remotes: " .. #S.remotes)
+	end)
+
+	-- ECONOMY
+	local eco = pages["Economy"]
+	section(eco, "CITIES", 1)
+	toggle(eco, "Auto Upgrade Cities", 2, false, function(on) S.autoUpgrade = on end)
+	button(eco, "Upgrade All Cities Now", 3, function()
+		collectRemotes()
+		upgradeAllCities()
+	end)
+	numberBox(eco, "Upgrade Delay (sec)", 4, 1.2, 0.3, 5, function(n) S.upgradeDelay = n end)
+	button(eco, "Mass Upgrade (generic)", 5, function()
+		collectRemotes()
+		fireAll({"UpgradeAll", "MassUpgrade", "UpgradeEverything", "MaxAll"}, {})
+		notify("Upgrade", "Mass fired")
+	end)
+
+	-- WAR
+	local war = pages["War"]
+	section(war, "COMBAT", 1)
+	toggle(war, "Auto Capture", 2, false, function(on) S.autoCapture = on end)
+	button(war, "Capture Once", 3, function()
+		collectRemotes()
+		tryAutoCapture()
+		notify("War", "Capture sent")
+	end)
+	button(war, "Justify War", 4, function()
+		collectRemotes()
+		tryJustifyWar()
+		notify("War", "Justify sent")
+	end)
+	button(war, "Declare War", 5, function()
+		collectRemotes()
+		tryDeclareWar()
+		notify("War", "Declare sent")
+	end)
+
+	-- TECH
+	local tech = pages["Tech"]
+	section(tech, "RESEARCH", 1)
+	toggle(tech, "Auto Research", 2, false, function(on) S.autoResearch = on end)
+	button(tech, "Research Once", 3, function()
+		collectRemotes()
+		autoResearchOnce()
+		notify("Tech", "Research sent")
+	end)
+
+	-- MISC
+	local misc = pages["Misc"]
+	section(misc, "PLAYER", 1)
+	toggle(misc, "Anti AFK", 2, true, function(on) S.antiAfk = on end)
+	button(misc, "Rejoin Server", 3, function()
+		pcall(function()
+			TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP)
+		end)
+	end)
+	button(misc, "Copy Discord", 4, function()
+		pcall(function() if setclipboard then setclipboard(DISCORD) end end)
+		notify("Discord", "Copied")
+	end)
+	button(misc, "Unload Hub", 5, function()
+		S.alive = false
+		pcall(function() Gui:Destroy() end)
+	end)
+
+	-- CREDITS
+	local credits = pages["Credits"]
+	section(credits, "ENCRYPTED HUB", 1)
+	button(credits, "Credits: SGA", 2, function() notify("Credits", "SGA · Encrypted Hub") end)
+	button(credits, "Copy Discord Invite", 3, function()
+		pcall(function() if setclipboard then setclipboard(DISCORD) end end)
+		notify("Discord", DISCORD)
+	end)
+
+	selectTab("Army")
+
+	-- drag
+	local dragging, dragStart, startPos
+	Header.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = Main.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then dragging = false end
+			end)
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			local d = input.Position - dragStart
+			Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+		end
+	end)
+
+	UserInputService.InputBegan:Connect(function(input, gp)
+		if gp then return end
+		if input.KeyCode == Enum.KeyCode.RightControl and unlocked then
+			Main.Visible = not Main.Visible
+		end
+	end)
+end
+
+local function unlockHub()
+	unlocked = true
+	Gate.Visible = false
+	Dim.Visible = false
+	buildMain()
+	if Main then
+		Main.BackgroundColor3 = COLORS.bg
+		Main.Visible = true
+	end
+	collectRemotes()
+	getMyCountry()
+	notify("Encrypted Hub", "Control Europe ready")
+	warn("[Encrypted Hub] Control Europe loaded | remotes=" .. tostring(#S.remotes))
+end
+
+local function showKey(themeName)
+	applyTheme(themeName)
+	Gate.BackgroundColor3 = COLORS.bg
+	for _, c in ipairs(GatePage:GetChildren()) do c:Destroy() end
+
+	local t1 = Instance.new("TextLabel", GatePage)
+	t1.Size = UDim2.new(1, -40, 0, 28)
+	t1.Position = UDim2.fromOffset(20, 22)
+	t1.BackgroundTransparency = 1
+	t1.Text = "Encrypted Hub"
+	t1.Font = Enum.Font.GothamBlack
+	t1.TextSize = 24
+	t1.TextColor3 = COLORS.text
+	t1.TextXAlignment = Enum.TextXAlignment.Left
+
+	local t2 = Instance.new("TextLabel", GatePage)
+	t2.Size = UDim2.new(1, -40, 0, 18)
+	t2.Position = UDim2.fromOffset(20, 52)
+	t2.BackgroundTransparency = 1
+	t2.Text = themeName .. "  ·  Control Europe"
+	t2.Font = Enum.Font.Gotham
+	t2.TextSize = 13
+	t2.TextColor3 = COLORS.muted
+	t2.TextXAlignment = Enum.TextXAlignment.Left
+
+	local status = Instance.new("TextLabel", GatePage)
+	status.Size = UDim2.new(1, -40, 0, 18)
+	status.Position = UDim2.fromOffset(20, 90)
+	status.BackgroundTransparency = 1
+	status.Text = "Enter key"
+	status.Font = Enum.Font.Gotham
+	status.TextSize = 13
+	status.TextColor3 = COLORS.muted
+	status.TextXAlignment = Enum.TextXAlignment.Left
+
+	local Box = Instance.new("TextBox", GatePage)
+	Box.Size = UDim2.new(1, -40, 0, 46)
+	Box.Position = UDim2.fromOffset(20, 118)
+	Box.BackgroundColor3 = COLORS.panel
+	Box.PlaceholderText = "Key"
+	Box.Text = ""
+	Box.Font = Enum.Font.GothamMedium
+	Box.TextSize = 15
+	Box.TextColor3 = COLORS.text
+	Box.ClearTextOnFocus = false
+	Box.TextXAlignment = Enum.TextXAlignment.Left
+	corner(Box, 12)
+	stroke(Box, COLORS.accent, 1.3)
+	Instance.new("UIPadding", Box).PaddingLeft = UDim.new(0, 12)
+
+	local Unlock = Instance.new("TextButton", GatePage)
+	Unlock.Size = UDim2.new(1, -40, 0, 46)
+	Unlock.Position = UDim2.fromOffset(20, 178)
+	Unlock.BackgroundColor3 = COLORS.accent
+	Unlock.Text = "Unlock"
+	Unlock.Font = Enum.Font.GothamBold
+	Unlock.TextSize = 16
+	Unlock.TextColor3 = Color3.new(1, 1, 1)
+	corner(Unlock, 12)
+
+	local disc = Instance.new("TextButton", GatePage)
+	disc.Size = UDim2.new(1, -40, 0, 36)
+	disc.Position = UDim2.fromOffset(20, 236)
+	disc.BackgroundColor3 = COLORS.panel
+	disc.Text = "Copy Discord"
+	disc.Font = Enum.Font.Gotham
+	disc.TextSize = 13
+	disc.TextColor3 = COLORS.text
+	corner(disc, 10)
+	stroke(disc, COLORS.accent, 1)
+	disc.MouseButton1Click:Connect(function()
+		pcall(function() if setclipboard then setclipboard(DISCORD) end end)
+		notify("Discord", "Copied")
+	end)
+
+	local function try()
+		local k = tostring(Box.Text or ""):gsub("%s+", "")
+		if k == KEY then
+			status.Text = "Correct"
+			status.TextColor3 = COLORS.on
+			unlockHub()
+		else
+			status.Text = "Wrong key"
+			status.TextColor3 = COLORS.off
+		end
+	end
+	Unlock.MouseButton1Click:Connect(try)
+	Box.FocusLost:Connect(function(enter) if enter then try() end end)
+end
+
+local function showThemes()
+	for _, c in ipairs(GatePage:GetChildren()) do c:Destroy() end
+	local t1 = Instance.new("TextLabel", GatePage)
+	t1.Size = UDim2.new(1, -40, 0, 28)
+	t1.Position = UDim2.fromOffset(20, 18)
+	t1.BackgroundTransparency = 1
+	t1.Text = "Pick Theme"
+	t1.Font = Enum.Font.GothamBlack
+	t1.TextSize = 22
+	t1.TextColor3 = COLORS.text
+	t1.TextXAlignment = Enum.TextXAlignment.Left
+
+	local list = Instance.new("ScrollingFrame", GatePage)
+	list.Size = UDim2.new(1, -40, 1, -90)
+	list.Position = UDim2.fromOffset(20, 60)
+	list.BackgroundTransparency = 1
+	list.BorderSizePixel = 0
+	list.ScrollBarThickness = 3
+	list.CanvasSize = UDim2.fromOffset(0, 280)
+
+	local names = {"Space", "Crimson", "Emerald", "Violet", "Midnight"}
+	for i, tn in ipairs(names) do
+		local th = THEMES[tn]
+		local b = Instance.new("TextButton", list)
+		b.Size = UDim2.new(1, -4, 0, 42)
+		b.Position = UDim2.fromOffset(0, (i - 1) * 48)
+		b.BackgroundColor3 = th.panel
+		b.Text = ""
+		b.AutoButtonColor = false
+		corner(b, 10)
+		stroke(b, th.accent, 1.2)
+		local lab = Instance.new("TextLabel", b)
+		lab.Size = UDim2.new(1, -16, 1, 0)
+		lab.Position = UDim2.fromOffset(14, 0)
+		lab.BackgroundTransparency = 1
+		lab.Text = tn
+		lab.Font = Enum.Font.GothamBold
+		lab.TextSize = 14
+		lab.TextColor3 = th.text
+		lab.TextXAlignment = Enum.TextXAlignment.Left
+		b.MouseButton1Click:Connect(function() showKey(tn) end)
+	end
+end
+
+showThemes()
+
+-- ===================== WORKERS =====================
+task.spawn(function()
+	while S.alive do
+		task.wait(1)
+		pcall(function()
+			if S.autoSpawn then
+				spawnOnAllRegions()
+			end
+		end)
+	end
+end)
+
+task.spawn(function()
+	while S.alive do
+		task.wait(2)
+		pcall(function()
+			if S.autoUpgrade then
+				upgradeAllCities()
+			end
+		end)
+	end
+end)
+
+task.spawn(function()
+	while S.alive do
+		task.wait(1.5)
+		pcall(function()
+			if S.autoCapture then
+				tryAutoCapture()
+			end
+		end)
+	end
+end)
+
+task.spawn(function()
+	while S.alive do
+		task.wait(3)
+		pcall(function()
+			if S.autoResearch then
+				autoResearchOnce()
+			end
+		end)
+	end
+end)
+
+task.spawn(function()
+	while S.alive do
+		task.wait(60)
+		if S.antiAfk then
+			pcall(function()
+				VirtualUser:CaptureController()
+				VirtualUser:ClickButton2(Vector2.new())
+			end)
+		end
+	end
+end)
+
+LP.Idled:Connect(function()
+	if S.antiAfk then
+		pcall(function()
+			VirtualUser:CaptureController()
+			VirtualUser:ClickButton2(Vector2.new())
+		end)
+	end
+end)
+
+notify("Encrypted Hub", "Pick theme · key VSP")
+warn("[Encrypted Hub] Control Europe UI loaded")
