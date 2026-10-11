@@ -1,0 +1,1134 @@
+--[[
+  LEGACY HUB  ·  Pet Simulator 99
+  Blood Moon / Pumpkin Event
+  key: VSP | discord: https://discord.gg/suCUkHNZmv
+]]
+
+if not table.clear then
+	function table.clear(t) for k in pairs(t) do t[k] = nil end end
+end
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+local VirtualUser = game:GetService("VirtualUser")
+local TeleportService = game:GetService("TeleportService")
+local Workspace = game:GetService("Workspace")
+local CoreGui = game:GetService("CoreGui")
+local Lighting = game:GetService("Lighting")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+local LP = Players.LocalPlayer
+local KEY = "VSP"
+local DISCORD = "https://discord.gg/suCUkHNZmv"
+
+local S = {
+	alive = true,
+	-- farm
+	autoFarm = false, autoCollect = false, autoHatch = false,
+	autoEquipBest = false, autoClaim = false, autoUltimate = false,
+	farmDelay = 0.1, hatchDelay = 0.3, collectRange = 100,
+	eggName = "Cracked Egg", hatchAmount = 1,
+	-- event blood moon / pumpkin
+	autoCandy = false, autoTrickTreat = false, autoFeedPumpkin = false,
+	autoOpenPumpkin = false, autoPumpkinRebirth = false, autoStalkEgg = false,
+	autoHatchBattle = false, autoSpookyUpgrade = false, autoBloodMoonHatch = false,
+	autoHouse = false, autoManor = false, autoLuckyBurst = false,
+	autoEventQuest = false, autoSeasonPass = false, autoGiantPumpkinFarm = false,
+	autoOrb = false, autoLuckOrb = false, autoCombineOrb = false, autoOrbPower = false,
+	houseIndex = 1, upgradeName = "Orb Bank",
+	-- movement
+	speed = false, speedVal = 28, jump = false, jumpVal = 70,
+	fly = false, flySpd = 60, noclip = false, infJump = false, clickTp = false,
+	antiAfk = true, fullbright = false, esp = false, fpsBoost = false,
+}
+
+local remotes = {}
+local conns = {}
+local function track(c) table.insert(conns, c) return c end
+
+local function notify(t, m)
+	pcall(function()
+		StarterGui:SetCore("SendNotification", {Title = tostring(t), Text = tostring(m), Duration = 3})
+	end)
+end
+
+local function char() return LP.Character end
+local function hrp() local c = char() return c and c:FindFirstChild("HumanoidRootPart") end
+local function hum() local c = char() return c and c:FindFirstChildOfClass("Humanoid") end
+
+local function collectRemotes()
+	table.clear(remotes)
+	local function add(inst)
+		if inst and (inst:IsA("RemoteEvent") or inst:IsA("RemoteFunction")) then
+			table.insert(remotes, inst)
+		end
+	end
+	for _, d in ipairs(ReplicatedStorage:GetDescendants()) do
+		if d:IsA("RemoteEvent") or d:IsA("RemoteFunction") then add(d) end
+	end
+	return #remotes
+end
+
+local function fireNames(names, args)
+	args = args or {}
+	if #remotes == 0 then collectRemotes() end
+	for _, name in ipairs(names) do
+		for _, r in ipairs(remotes) do
+			pcall(function()
+				if r:IsA("RemoteEvent") then
+					r:FireServer(name, unpack(args))
+					r:FireServer(name, args)
+					if #args > 0 then r:FireServer(unpack(args)) end
+				else
+					r:InvokeServer(name, unpack(args))
+					r:InvokeServer(name, args)
+				end
+			end)
+		end
+		pcall(function()
+			local net = ReplicatedStorage:FindFirstChild("Network")
+				or ReplicatedStorage:FindFirstChild("Networking")
+			if net then
+				local child = net:FindFirstChild(name) or net:FindFirstChild(name, true)
+				if child then
+					if child:IsA("RemoteEvent") then child:FireServer(unpack(args)) end
+					if child:IsA("RemoteFunction") then child:InvokeServer(unpack(args)) end
+				end
+			end
+		end)
+		pcall(function()
+			local lib = ReplicatedStorage:FindFirstChild("Library")
+			if lib then
+				local net = lib:FindFirstChild("Network") or lib:FindFirstChild("Networking")
+				if net then
+					local fn = net:FindFirstChild(name)
+					if fn then
+						if fn:IsA("RemoteEvent") then fn:FireServer(unpack(args)) end
+						if fn:IsA("RemoteFunction") then fn:InvokeServer(unpack(args)) end
+					end
+				end
+			end
+		end)
+	end
+end
+
+-- movement
+local speedConn
+local function applySpeed(on)
+	S.speed = on
+	if speedConn then pcall(function() speedConn:Disconnect() end) speedConn = nil end
+	if on then
+		speedConn = track(RunService.Heartbeat:Connect(function()
+			if not S.speed then return end
+			local h = hum()
+			if h then h.WalkSpeed = S.speedVal end
+		end))
+	else
+		local h = hum()
+		if h then h.WalkSpeed = 16 end
+	end
+end
+
+local function applyJump(on)
+	S.jump = on
+	local h = hum()
+	if h then
+		pcall(function() h.UseJumpPower = true end)
+		h.JumpPower = on and S.jumpVal or 50
+	end
+end
+
+local flyBV, flyBG, flyConn
+local function applyFly(on)
+	S.fly = on
+	if flyBV then pcall(function() flyBV:Destroy() end) flyBV = nil end
+	if flyBG then pcall(function() flyBG:Destroy() end) flyBG = nil end
+	if flyConn then pcall(function() flyConn:Disconnect() end) flyConn = nil end
+	local r = hrp()
+	if not on or not r then return end
+	flyBV = Instance.new("BodyVelocity")
+	flyBV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+	flyBV.Velocity = Vector3.zero
+	flyBV.Parent = r
+	flyBG = Instance.new("BodyGyro")
+	flyBG.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+	flyBG.P = 2500
+	flyBG.Parent = r
+	flyConn = track(RunService.RenderStepped:Connect(function()
+		if not S.fly or not flyBV then return end
+		local cam = Workspace.CurrentCamera
+		if not cam then return end
+		local d = Vector3.zero
+		if UIS:IsKeyDown(Enum.KeyCode.W) then d = d + cam.CFrame.LookVector end
+		if UIS:IsKeyDown(Enum.KeyCode.S) then d = d - cam.CFrame.LookVector end
+		if UIS:IsKeyDown(Enum.KeyCode.A) then d = d - cam.CFrame.RightVector end
+		if UIS:IsKeyDown(Enum.KeyCode.D) then d = d + cam.CFrame.RightVector end
+		if UIS:IsKeyDown(Enum.KeyCode.Space) then d = d + Vector3.new(0, 1, 0) end
+		if UIS:IsKeyDown(Enum.KeyCode.LeftControl) or UIS:IsKeyDown(Enum.KeyCode.LeftShift) then
+			d = d - Vector3.new(0, 1, 0)
+		end
+		if d.Magnitude > 0 then d = d.Unit * S.flySpd end
+		flyBV.Velocity = d
+		if flyBG then flyBG.CFrame = cam.CFrame end
+	end))
+end
+
+local noclipConn
+local function applyNoclip(on)
+	S.noclip = on
+	if noclipConn then pcall(function() noclipConn:Disconnect() end) noclipConn = nil end
+	if on then
+		noclipConn = track(RunService.Stepped:Connect(function()
+			if not S.noclip then return end
+			local c = char()
+			if not c then return end
+			for _, p in ipairs(c:GetDescendants()) do
+				if p:IsA("BasePart") then p.CanCollide = false end
+			end
+		end))
+	end
+end
+
+track(UIS.JumpRequest:Connect(function()
+	if not S.infJump then return end
+	local h = hum()
+	if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
+end))
+
+track(UIS.InputBegan:Connect(function(input, gp)
+	if gp then return end
+	if S.clickTp and input.UserInputType == Enum.UserInputType.MouseButton1 then
+		local m = LP:GetMouse()
+		local r = hrp()
+		if m and m.Hit and r then
+			r.CFrame = CFrame.new(m.Hit.Position + Vector3.new(0, 3, 0))
+		end
+	end
+end))
+
+local espFolder
+local function clearEsp()
+	if espFolder then pcall(function() espFolder:Destroy() end) end
+	espFolder = nil
+end
+local function applyEsp(on)
+	S.esp = on
+	clearEsp()
+	if not on then return end
+	espFolder = Instance.new("Folder")
+	espFolder.Name = "LH_ESP"
+	espFolder.Parent = CoreGui
+	local function add(plr)
+		if plr == LP then return end
+		local function attach()
+			local c = plr.Character
+			if not c then return end
+			local r = c:FindFirstChild("HumanoidRootPart")
+			if not r then return end
+			local hl = Instance.new("Highlight")
+			hl.FillColor = Color3.fromRGB(220, 120, 40)
+			hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+			hl.FillTransparency = 0.7
+			hl.Adornee = c
+			hl.Parent = espFolder
+			local bb = Instance.new("BillboardGui")
+			bb.Size = UDim2.fromOffset(100, 16)
+			bb.StudsOffset = Vector3.new(0, 2.8, 0)
+			bb.AlwaysOnTop = true
+			bb.Adornee = r
+			bb.Parent = espFolder
+			local tl = Instance.new("TextLabel", bb)
+			tl.Size = UDim2.fromScale(1, 1)
+			tl.BackgroundTransparency = 1
+			tl.Text = plr.Name
+			tl.Font = Enum.Font.Code
+			tl.TextSize = 11
+			tl.TextColor3 = Color3.fromRGB(255, 200, 120)
+			tl.TextStrokeTransparency = 0.5
+		end
+		attach()
+		plr.CharacterAdded:Connect(function()
+			task.wait(0.4)
+			if S.esp then attach() end
+		end)
+	end
+	for _, p in ipairs(Players:GetPlayers()) do add(p) end
+	track(Players.PlayerAdded:Connect(function(p)
+		task.wait(0.8)
+		if S.esp then add(p) end
+	end))
+end
+
+local function applyFpsBoost(on)
+	S.fpsBoost = on
+	if on then
+		pcall(function()
+			settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+			Lighting.GlobalShadows = false
+			Lighting.FogEnd = 1e5
+		end)
+	end
+end
+
+track(RunService.RenderStepped:Connect(function()
+	if not S.alive then return end
+	if S.fullbright then
+		pcall(function()
+			Lighting.Brightness = 2
+			Lighting.ClockTime = 14
+			Lighting.FogEnd = 1e5
+			Lighting.GlobalShadows = false
+		end)
+	end
+end))
+
+track(LP.Idled:Connect(function()
+	if S.antiAfk then
+		pcall(function()
+			VirtualUser:CaptureController()
+			VirtualUser:ClickButton2(Vector2.new())
+		end)
+	end
+end))
+task.spawn(function()
+	while S.alive do
+		task.wait(50)
+		if S.antiAfk then
+			pcall(function()
+				VirtualUser:CaptureController()
+				VirtualUser:ClickButton2(Vector2.new())
+			end)
+		end
+	end
+end)
+
+LP.CharacterAdded:Connect(function()
+	task.wait(0.7)
+	if S.speed then applySpeed(true) end
+	if S.jump then applyJump(true) end
+	if S.fly then applyFly(true) end
+	if S.noclip then applyNoclip(true) end
+end)
+
+-- ===== ACTIONS =====
+local function nearestBreakable()
+	local my = hrp()
+	if not my then return nil end
+	local best, bestDist = nil, 1e9
+	local roots = {Workspace:FindFirstChild("__THINGS"), Workspace:FindFirstChild("Breakables"), Workspace}
+	for _, root in ipairs(roots) do
+		if root then
+			for _, obj in ipairs(root:GetDescendants()) do
+				if obj:IsA("BasePart") then
+					local n = obj.Name:lower()
+					if n:find("break") or n:find("coin") or n:find("chest") or n:find("candy")
+						or n:find("pumpkin") or n:find("orb") or n:find("loot") or n:find("block") then
+						local d = (obj.Position - my.Position).Magnitude
+						if d < bestDist and d < 150 then
+							bestDist = d
+							best = obj
+						end
+					end
+				end
+			end
+		end
+	end
+	return best
+end
+
+local function farmTick()
+	local my = hrp()
+	if not my then return end
+	local target = nearestBreakable()
+	if target then
+		pcall(function() my.CFrame = CFrame.new(target.Position + Vector3.new(0, 4, 0)) end)
+	end
+	fireNames({"Tap", "Click", "Break", "DamageBreakable", "HitBreakable", "Farm", "DealDamage", "PetTap"}, {})
+	local c = char()
+	if c then
+		local tool = c:FindFirstChildOfClass("Tool")
+		if tool then pcall(function() tool:Activate() end) end
+	end
+	pcall(function()
+		local cam = Workspace.CurrentCamera
+		if cam then
+			local vp = cam.ViewportSize
+			VirtualInputManager:SendMouseButtonEvent(vp.X / 2, vp.Y / 2, 0, true, game, 0)
+			VirtualInputManager:SendMouseButtonEvent(vp.X / 2, vp.Y / 2, 0, false, game, 0)
+		end
+	end)
+end
+
+local function collectTick()
+	local my = hrp()
+	if not my then return end
+	fireNames({
+		"CollectOrb", "CollectOrbs", "ClaimOrb", "PickupOrb", "Orbs_Collect",
+		"CollectAllOrbs", "MagnetOrbs", "CollectLootbag", "CollectLoot",
+		"Pickup", "Collect", "Magnet", "CollectAll", "CollectCandy",
+		"CollectLuckOrb", "LuckOrb", "ClaimLuck",
+	}, {})
+	local things = Workspace:FindFirstChild("__THINGS") or Workspace
+	local range = S.collectRange or 120
+	local bestOrb, bestDist = nil, 1e9
+	for _, obj in ipairs(things:GetDescendants()) do
+		if obj:IsA("BasePart") or obj:IsA("MeshPart") then
+			local n = obj.Name:lower()
+			if n:find("orb") or n:find("luck") or n:find("loot") or n:find("bag")
+				or n:find("candy") or n:find("corn") or n:find("gem") or n:find("burst") then
+				local d = (obj.Position - my.Position).Magnitude
+				if d < range and d < bestDist then
+					bestDist = d
+					bestOrb = obj
+				end
+			end
+		end
+	end
+	if bestOrb then
+		pcall(function()
+			my.CFrame = CFrame.new(bestOrb.Position + Vector3.new(0, 2.5, 0))
+		end)
+	end
+end
+
+local function collectOrbLuck()
+	-- dedicated luck orb / event orb pickup
+	fireNames({
+		"CollectOrb", "CollectOrbs", "ClaimOrb", "PickupOrb", "Orbs_Collect",
+		"CollectAllOrbs", "MagnetOrbs", "CollectLuckOrb", "LuckOrb",
+		"ClaimLuck", "PickupLuck", "CollectLuckyOrb", "LuckyOrb",
+		"OrbMagnet", "Magnet",
+	}, {})
+	local my = hrp()
+	if not my then return end
+	local roots = {
+		Workspace:FindFirstChild("__THINGS"),
+		Workspace:FindFirstChild("Orbs"),
+		Workspace:FindFirstChild("Rendered"),
+		Workspace,
+	}
+	local range = (S.collectRange or 120) * 1.5
+	local targets = {}
+	for _, root in ipairs(roots) do
+		if root then
+			for _, obj in ipairs(root:GetDescendants()) do
+				if obj:IsA("BasePart") or obj:IsA("MeshPart") then
+					local n = obj.Name:lower()
+					if n:find("orb") or n:find("luck") or n:find("lucky") or n:find("burst") then
+						local d = (obj.Position - my.Position).Magnitude
+						if d < range then
+							table.insert(targets, {part = obj, dist = d})
+						end
+					end
+				end
+			end
+		end
+	end
+	table.sort(targets, function(a, b) return a.dist < b.dist end)
+	for i = 1, math.min(5, #targets) do
+		local t = targets[i]
+		pcall(function()
+			my.CFrame = CFrame.new(t.part.Position + Vector3.new(0, 2, 0))
+		end)
+		fireNames({"CollectOrb", "PickupOrb", "ClaimOrb", "Magnet"}, {})
+		task.wait(0.05)
+	end
+end
+
+local function combineOrbs()
+	fireNames({
+		"CombineOrbs", "OrbCombine", "MergeOrbs", "Combine",
+		"Orbs_Combine", "FuseOrbs",
+	}, {})
+end
+
+local function orbPowerUpgrade()
+	fireNames({
+		"OrbPower", "OrbBank", "BuyOrbPower", "BuyOrbBank",
+		"SpookyUpgrade", "BuyUpgrade", "Upgrade",
+	}, {"Orb Power"})
+	fireNames({
+		"OrbPower", "OrbBank", "BuyOrbPower", "BuyOrbBank",
+		"SpookyUpgrade", "BuyUpgrade",
+	}, {"Orb Bank"})
+	fireNames({"SpookyUpgrade", "BuyUpgrade", "Upgrade"}, {})
+end
+
+local function hatchTick()
+	local egg = S.eggName or "Cracked Egg"
+	local amt = S.hatchAmount or 1
+	fireNames({"Hatch", "BuyEgg", "OpenEgg", "HatchEgg", "PurchaseEgg", "Eggs_Hatch", "BuyAndHatch"}, {egg, amt})
+	fireNames({"Hatch", "BuyEgg", "OpenEgg"}, {egg})
+end
+
+local function equipBest()
+	fireNames({"EquipBest", "EquipBestPets", "Pets_EquipBest", "EquipStrongest", "AutoEquip"}, {})
+end
+
+local function claimRewards()
+	fireNames({"Claim", "ClaimRewards", "ClaimFree", "ClaimGift", "ClaimRank", "ClaimDaily", "Redeem", "FreeGift", "ClaimAll", "CollectRewards", "ClaimPass"}, {})
+end
+
+local function useUltimate()
+	fireNames({"Ultimate", "UseUltimate", "ActivateUltimate", "PetUltimate"}, {})
+end
+
+-- EVENT / BLOOD MOON / PUMPKIN
+local function candyFarm()
+	fireNames({"CollectCandy", "Candy", "BreakCandy", "FarmCandy", "GetCandy"}, {})
+	farmTick()
+	collectTick()
+end
+
+local function trickOrTreat()
+	local idx = S.houseIndex or 1
+	fireNames({
+		"TrickOrTreat", "TrickTreat", "KnockDoor", "KnockHouse",
+		"VisitHouse", "HouseKnock", "Treat", "SpookyHouse",
+	}, {idx})
+	fireNames({"TrickOrTreat", "KnockDoor", "KnockHouse"}, {tostring(idx)})
+	fireNames({"TrickOrTreat", "KnockDoor"}, {})
+end
+
+local function feedPumpkin()
+	fireNames({
+		"FeedPumpkin", "GiantPumpkin", "PumpkinFeed", "FeedGiantPumpkin",
+		"AddToPumpkin", "PumpkinAddPet", "DepositPetPumpkin",
+	}, {})
+end
+
+local function openPumpkin()
+	fireNames({
+		"OpenPumpkin", "SmashPumpkin", "BreakPumpkin", "GiantPumpkinOpen",
+		"OpenGiantPumpkin", "ClaimPumpkin", "PumpkinOpen",
+	}, {})
+end
+
+local function pumpkinRebirth()
+	fireNames({
+		"PumpkinRebirth", "RebirthPumpkin", "GiantPumpkinRebirth",
+		"RebirthGiantPumpkin", "PumpkinReset",
+	}, {})
+end
+
+local function stalkEgg()
+	fireNames({
+		"HatchStalk", "StalkEgg", "OpenStalkEgg", "BuyStalkEgg",
+		"Hatch", "BuyEgg",
+	}, {"Stalk Egg"})
+	fireNames({"Hatch", "BuyEgg", "OpenEgg"}, {"StalkEgg"})
+end
+
+local function hatchBattle()
+	fireNames({
+		"HatchBattle", "StartHatchBattle", "BattleHatch", "CountBattle",
+		"ManorBattle", "JoinBattle", "StartBattle",
+	}, {})
+end
+
+local function spookyUpgrade()
+	local name = S.upgradeName or "Orb Bank"
+	fireNames({
+		"SpookyUpgrade", "BuyUpgrade", "Upgrade", "EventUpgrade",
+		"HalloweenUpgrade", "PurchaseUpgrade", "OrbBank", "OrbPower",
+	}, {name})
+	fireNames({"SpookyUpgrade", "BuyUpgrade", "Upgrade"}, {})
+end
+
+local function bloodMoonHatch()
+	fireNames({
+		"BloodMoonHatch", "HatchBloodMoon", "EventHatch",
+		"Hatch", "BuyEgg",
+	}, {S.eggName or "Werewolf Egg"})
+	hatchTick()
+end
+
+local function goHouse()
+	local idx = S.houseIndex or 1
+	fireNames({"TeleportHouse", "GoHouse", "TPHouse", "HouseTP"}, {idx})
+	-- try find house in workspace
+	pcall(function()
+		local my = hrp()
+		if not my then return end
+		for _, obj in ipairs(Workspace:GetDescendants()) do
+			local n = obj.Name:lower()
+			if (n:find("house") or n:find("door")) and obj:IsA("BasePart") then
+				if n:find(tostring(idx)) or idx == 1 then
+					my.CFrame = CFrame.new(obj.Position + Vector3.new(0, 5, 0))
+					break
+				end
+			end
+		end
+	end)
+end
+
+local function goManor()
+	fireNames({"TeleportManor", "GoManor", "CountManor", "TPManor", "WitchingHour"}, {})
+	pcall(function()
+		local my = hrp()
+		if not my then return end
+		for _, obj in ipairs(Workspace:GetDescendants()) do
+			local n = obj.Name:lower()
+			if (n:find("manor") or n:find("castle") or n:find("count") or n:find("witch")) and obj:IsA("BasePart") then
+				my.CFrame = CFrame.new(obj.Position + Vector3.new(0, 5, 0))
+				break
+			end
+		end
+	end)
+end
+
+local function luckyBurst()
+	fireNames({
+		"LuckyBurst", "UseBurst", "LuckyCandle", "SoulLantern",
+		"LuckySpell", "UseLucky", "ActivateBurst",
+	}, {})
+end
+
+local function eventQuest()
+	fireNames({
+		"EventQuest", "ClaimQuest", "CompleteQuest", "HalloweenQuest",
+		"BloodMoonQuest", "ClaimEvent", "QuestClaim",
+	}, {})
+	claimRewards()
+end
+
+local function seasonPass()
+	fireNames({
+		"SeasonPass", "ClaimPass", "PassClaim", "ClaimSeason",
+		"BattlePass", "ClaimTier",
+	}, {})
+end
+
+local function giantPumpkinFarm()
+	feedPumpkin()
+	candyFarm()
+	fireNames({"GiantPumpkin", "PumpkinFarm", "GrowPumpkin"}, {})
+end
+
+-- workers
+task.spawn(function()
+	while S.alive do
+		task.wait(S.farmDelay or 0.1)
+		if S.autoFarm then pcall(farmTick) end
+		if S.autoCandy then pcall(candyFarm) end
+		if S.autoGiantPumpkinFarm then pcall(giantPumpkinFarm) end
+	end
+end)
+task.spawn(function()
+	while S.alive do
+		task.wait(0.2)
+		if S.autoCollect then pcall(collectTick) end
+		if S.autoOrb or S.autoLuckOrb then pcall(collectOrbLuck) end
+	end
+end)
+task.spawn(function()
+	while S.alive do
+		task.wait(2.5)
+		if S.autoCombineOrb then pcall(combineOrbs) end
+		if S.autoOrbPower then pcall(orbPowerUpgrade) end
+	end
+end)
+task.spawn(function()
+	while S.alive do
+		task.wait(S.hatchDelay or 0.3)
+		if S.autoHatch then pcall(hatchTick) end
+		if S.autoBloodMoonHatch then pcall(bloodMoonHatch) end
+		if S.autoStalkEgg then pcall(stalkEgg) end
+	end
+end)
+task.spawn(function()
+	while S.alive do
+		task.wait(1.2)
+		if S.autoTrickTreat then pcall(trickOrTreat) end
+		if S.autoHouse then pcall(goHouse) end
+	end
+end)
+task.spawn(function()
+	while S.alive do
+		task.wait(2)
+		if S.autoFeedPumpkin then pcall(feedPumpkin) end
+		if S.autoOpenPumpkin then pcall(openPumpkin) end
+		if S.autoPumpkinRebirth then pcall(pumpkinRebirth) end
+		if S.autoSpookyUpgrade then pcall(spookyUpgrade) end
+		if S.autoLuckyBurst then pcall(luckyBurst) end
+	end
+end)
+task.spawn(function()
+	while S.alive do
+		task.wait(3)
+		if S.autoHatchBattle then pcall(hatchBattle) end
+		if S.autoManor then pcall(goManor) end
+		if S.autoEventQuest then pcall(eventQuest) end
+		if S.autoSeasonPass then pcall(seasonPass) end
+	end
+end)
+task.spawn(function()
+	while S.alive do
+		task.wait(20)
+		if S.autoEquipBest then pcall(equipBest) end
+	end
+end)
+task.spawn(function()
+	while S.alive do
+		task.wait(12)
+		if S.autoClaim then pcall(claimRewards) end
+	end
+end)
+task.spawn(function()
+	while S.alive do
+		task.wait(5)
+		if S.autoUltimate then pcall(useUltimate) end
+	end
+end)
+
+-- ===== UI =====
+local THEMES = {
+	{name = "Midnight", bg = Color3.fromRGB(10, 10, 12), panel = Color3.fromRGB(16, 16, 18), accent = Color3.fromRGB(200, 170, 110), text = Color3.fromRGB(230, 228, 220), dim = Color3.fromRGB(120, 118, 110), ok = Color3.fromRGB(120, 160, 110), off = Color3.fromRGB(70, 70, 74)},
+	{name = "Pumpkin", bg = Color3.fromRGB(16, 10, 6), panel = Color3.fromRGB(28, 16, 8), accent = Color3.fromRGB(255, 140, 40), text = Color3.fromRGB(255, 230, 200), dim = Color3.fromRGB(180, 140, 100), ok = Color3.fromRGB(120, 160, 110), off = Color3.fromRGB(80, 50, 30)},
+	{name = "Blood", bg = Color3.fromRGB(14, 6, 8), panel = Color3.fromRGB(24, 10, 12), accent = Color3.fromRGB(200, 40, 50), text = Color3.fromRGB(255, 220, 220), dim = Color3.fromRGB(160, 100, 100), ok = Color3.fromRGB(120, 160, 110), off = Color3.fromRGB(70, 40, 40)},
+	{name = "Forest", bg = Color3.fromRGB(8, 12, 10), panel = Color3.fromRGB(12, 20, 16), accent = Color3.fromRGB(90, 180, 120), text = Color3.fromRGB(220, 240, 230), dim = Color3.fromRGB(110, 140, 120), ok = Color3.fromRGB(120, 160, 110), off = Color3.fromRGB(50, 70, 55)},
+	{name = "Violet", bg = Color3.fromRGB(12, 8, 16), panel = Color3.fromRGB(20, 14, 28), accent = Color3.fromRGB(170, 110, 220), text = Color3.fromRGB(235, 225, 250), dim = Color3.fromRGB(140, 120, 160), ok = Color3.fromRGB(120, 160, 110), off = Color3.fromRGB(60, 50, 70)},
+}
+local TH = THEMES[2]
+
+local parentGui = CoreGui
+pcall(function()
+	if type(gethui) == "function" then
+		local g = gethui()
+		if g then parentGui = g end
+	end
+end)
+
+local function mk(cls, props, parent)
+	local o = Instance.new(cls)
+	for k, v in pairs(props) do o[k] = v end
+	if parent then o.Parent = parent end
+	return o
+end
+local function round(o, r)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, r or 3)
+	c.Parent = o
+end
+
+local GateGui = mk("ScreenGui", {
+	Name = "LegacyGate_PS99",
+	ResetOnSpawn = false,
+	IgnoreGuiInset = true,
+	DisplayOrder = 9999,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+}, parentGui)
+
+mk("Frame", {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = Color3.new(0, 0, 0),
+	BackgroundTransparency = 0.4,
+	BorderSizePixel = 0,
+}, GateGui)
+
+local Card = mk("Frame", {
+	Size = UDim2.fromOffset(320, 340),
+	Position = UDim2.fromScale(0.5, 0.5),
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	BackgroundColor3 = TH.bg,
+	BorderSizePixel = 0,
+}, GateGui)
+round(Card, 4)
+local cardStroke = mk("UIStroke", {Color = TH.accent, Thickness = 1}, Card)
+
+local Title = mk("TextLabel", {
+	Size = UDim2.new(1, -28, 0, 24), Position = UDim2.fromOffset(14, 14),
+	BackgroundTransparency = 1, Text = "LEGACY HUB", Font = Enum.Font.Code,
+	TextSize = 18, TextColor3 = TH.accent, TextXAlignment = Enum.TextXAlignment.Left,
+}, Card)
+local Sub = mk("TextLabel", {
+	Size = UDim2.new(1, -28, 0, 14), Position = UDim2.fromOffset(14, 38),
+	BackgroundTransparency = 1, Text = "PS99  ·  Blood Moon", Font = Enum.Font.Code,
+	TextSize = 11, TextColor3 = TH.dim, TextXAlignment = Enum.TextXAlignment.Left,
+}, Card)
+mk("Frame", {
+	Size = UDim2.new(1, -28, 0, 1), Position = UDim2.fromOffset(14, 58),
+	BackgroundColor3 = Color3.fromRGB(40, 40, 44), BorderSizePixel = 0,
+}, Card)
+
+local Page = mk("Frame", {
+	Size = UDim2.new(1, -28, 1, -74), Position = UDim2.fromOffset(14, 66),
+	BackgroundTransparency = 1,
+}, Card)
+
+local function clearPage()
+	for _, c in ipairs(Page:GetChildren()) do c:Destroy() end
+end
+
+local buildMain, showThemes
+
+local function showKey()
+	clearPage()
+	local status = mk("TextLabel", {
+		Size = UDim2.new(1, 0, 0, 16), BackgroundTransparency = 1,
+		Text = "theme: " .. TH.name .. "  ·  enter key", Font = Enum.Font.Code,
+		TextSize = 11, TextColor3 = TH.dim, TextXAlignment = Enum.TextXAlignment.Left,
+	}, Page)
+	local box = mk("TextBox", {
+		Size = UDim2.new(1, 0, 0, 36), Position = UDim2.fromOffset(0, 28),
+		BackgroundColor3 = TH.panel, BorderSizePixel = 0, Text = "", PlaceholderText = "key",
+		Font = Enum.Font.Code, TextSize = 13, TextColor3 = TH.text,
+		ClearTextOnFocus = false, TextXAlignment = Enum.TextXAlignment.Left,
+	}, Page)
+	round(box, 3)
+	mk("UIPadding", {PaddingLeft = UDim.new(0, 10)}, box)
+	mk("UIStroke", {Color = TH.accent, Thickness = 1}, box)
+	local enter = mk("TextButton", {
+		Size = UDim2.new(1, 0, 0, 36), Position = UDim2.fromOffset(0, 74),
+		BackgroundColor3 = TH.panel, BorderSizePixel = 0, Text = "ENTER",
+		Font = Enum.Font.Code, TextSize = 12, TextColor3 = TH.accent, AutoButtonColor = false,
+	}, Page)
+	round(enter, 3)
+	mk("UIStroke", {Color = TH.accent, Thickness = 1}, enter)
+	local disc = mk("TextButton", {
+		Size = UDim2.new(1, 0, 0, 28), Position = UDim2.fromOffset(0, 120),
+		BackgroundTransparency = 1, Text = "copy discord", Font = Enum.Font.Code,
+		TextSize = 11, TextColor3 = TH.dim,
+	}, Page)
+	disc.MouseButton1Click:Connect(function()
+		pcall(function() if setclipboard then setclipboard(DISCORD) end end)
+		notify("legacy", "copied")
+	end)
+	local back = mk("TextButton", {
+		Size = UDim2.new(1, 0, 0, 24), Position = UDim2.fromOffset(0, 150),
+		BackgroundTransparency = 1, Text = "← themes", Font = Enum.Font.Code,
+		TextSize = 11, TextColor3 = TH.dim,
+	}, Page)
+	local function try()
+		local k = tostring(box.Text or ""):gsub("%s+", "")
+		if k == KEY then
+			status.Text = "granted"
+			status.TextColor3 = TH.ok
+			GateGui:Destroy()
+			collectRemotes()
+			buildMain()
+			notify("legacy", "PS99 Blood Moon ready")
+		else
+			status.Text = "denied"
+			status.TextColor3 = Color3.fromRGB(200, 80, 80)
+		end
+	end
+	enter.MouseButton1Click:Connect(try)
+	box.FocusLost:Connect(function(e) if e then try() end end)
+	back.MouseButton1Click:Connect(function() showThemes() end)
+end
+
+function showThemes()
+	clearPage()
+	Card.BackgroundColor3 = TH.bg
+	cardStroke.Color = TH.accent
+	Title.TextColor3 = TH.accent
+	Sub.TextColor3 = TH.dim
+	mk("TextLabel", {
+		Size = UDim2.new(1, 0, 0, 16), BackgroundTransparency = 1, Text = "pick theme",
+		Font = Enum.Font.Code, TextSize = 11, TextColor3 = TH.dim, TextXAlignment = Enum.TextXAlignment.Left,
+	}, Page)
+	for i, th in ipairs(THEMES) do
+		local b = mk("TextButton", {
+			Size = UDim2.new(1, 0, 0, 36), Position = UDim2.fromOffset(0, 22 + (i - 1) * 42),
+			BackgroundColor3 = th.panel, BorderSizePixel = 0, Text = "  " .. th.name,
+			Font = Enum.Font.Code, TextSize = 12, TextColor3 = th.text,
+			TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false,
+		}, Page)
+		round(b, 3)
+		mk("UIStroke", {Color = th.accent, Thickness = 1}, b)
+		b.MouseButton1Click:Connect(function()
+			TH = th
+			Card.BackgroundColor3 = th.bg
+			cardStroke.Color = th.accent
+			Title.TextColor3 = th.accent
+			Sub.TextColor3 = th.dim
+			showKey()
+		end)
+	end
+end
+
+function buildMain()
+	local cam = Workspace.CurrentCamera
+	local vp = cam and cam.ViewportSize or Vector2.new(900, 600)
+	local mobile = (UIS.TouchEnabled and not UIS.KeyboardEnabled) or vp.X < 700
+	local W = mobile and math.min(vp.X - 16, 420) or 460
+	local H = mobile and math.min(vp.Y * 0.8, 460) or 440
+
+	local Gui = mk("ScreenGui", {
+		Name = "LegacyHub_PS99", ResetOnSpawn = false, IgnoreGuiInset = true,
+		DisplayOrder = 99, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+	}, parentGui)
+
+	local Main = mk("Frame", {
+		Size = UDim2.fromOffset(W, H), Position = UDim2.fromScale(0.5, 0.5),
+		AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = TH.bg,
+		BorderSizePixel = 0, Active = true,
+	}, Gui)
+	round(Main, 3)
+	mk("UIStroke", {Color = TH.accent, Thickness = 1}, Main)
+
+	local Head = mk("Frame", {
+		Size = UDim2.new(1, 0, 0, 36), BackgroundColor3 = TH.panel, BorderSizePixel = 0,
+	}, Main)
+	mk("TextLabel", {
+		Size = UDim2.new(1, -50, 1, 0), Position = UDim2.fromOffset(12, 0),
+		BackgroundTransparency = 1, Text = "LEGACY  /  PS99 BLOOD MOON",
+		Font = Enum.Font.Code, TextSize = 11, TextColor3 = TH.accent,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, Head)
+	local hide = mk("TextButton", {
+		Size = UDim2.fromOffset(26, 22), Position = UDim2.new(1, -32, 0.5, -11),
+		BackgroundColor3 = TH.bg, BorderSizePixel = 0, Text = "x",
+		Font = Enum.Font.Code, TextSize = 12, TextColor3 = TH.dim,
+	}, Head)
+	round(hide, 2)
+	hide.MouseButton1Click:Connect(function() Main.Visible = not Main.Visible end)
+
+	local body = mk("ScrollingFrame", {
+		Size = UDim2.new(1, -16, 1, -48), Position = UDim2.fromOffset(8, 42),
+		BackgroundColor3 = TH.panel, BorderSizePixel = 0, ScrollBarThickness = 2,
+		ScrollBarImageColor3 = Color3.fromRGB(50, 50, 54), CanvasSize = UDim2.new(0, 0, 0, 0),
+	}, Main)
+	round(body, 3)
+	local lay = mk("UIListLayout", {Padding = UDim.new(0, 3), SortOrder = Enum.SortOrder.LayoutOrder}, body)
+	mk("UIPadding", {
+		PaddingTop = UDim.new(0, 6), PaddingLeft = UDim.new(0, 6),
+		PaddingRight = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6),
+	}, body)
+	lay:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		body.CanvasSize = UDim2.new(0, 0, 0, lay.AbsoluteContentSize.Y + 10)
+	end)
+
+	local function head(t)
+		mk("TextLabel", {
+			Size = UDim2.new(1, -4, 0, 18), BackgroundTransparency = 1, Text = t,
+			Font = Enum.Font.Code, TextSize = 10, TextColor3 = TH.accent,
+			TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = #body:GetChildren(),
+		}, body)
+	end
+	local function toggle(label, default, cb)
+		local r = mk("TextButton", {
+			Size = UDim2.new(1, -4, 0, 28), BackgroundColor3 = TH.bg, BorderSizePixel = 0,
+			Text = "", AutoButtonColor = false, LayoutOrder = #body:GetChildren(),
+		}, body)
+		round(r, 2)
+		mk("TextLabel", {
+			Size = UDim2.new(1, -48, 1, 0), Position = UDim2.fromOffset(8, 0),
+			BackgroundTransparency = 1, Text = label, Font = Enum.Font.Code, TextSize = 11,
+			TextColor3 = TH.text, TextXAlignment = Enum.TextXAlignment.Left,
+		}, r)
+		local state = default and true or false
+		local mark = mk("TextLabel", {
+			Size = UDim2.fromOffset(32, 16), Position = UDim2.new(1, -38, 0.5, -8),
+			BackgroundColor3 = state and TH.ok or TH.off, BorderSizePixel = 0,
+			Text = state and "ON" or "--", Font = Enum.Font.Code, TextSize = 9,
+			TextColor3 = state and Color3.new(0, 0, 0) or TH.dim,
+		}, r)
+		round(mark, 2)
+		r.MouseButton1Click:Connect(function()
+			state = not state
+			mark.BackgroundColor3 = state and TH.ok or TH.off
+			mark.Text = state and "ON" or "--"
+			mark.TextColor3 = state and Color3.new(0, 0, 0) or TH.dim
+			if cb then pcall(cb, state) end
+		end)
+	end
+	local function btn(label, cb)
+		local b = mk("TextButton", {
+			Size = UDim2.new(1, -4, 0, 28), BackgroundColor3 = TH.bg, BorderSizePixel = 0,
+			Text = "  " .. label, Font = Enum.Font.Code, TextSize = 11, TextColor3 = TH.text,
+			TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = #body:GetChildren(),
+		}, body)
+		round(b, 2)
+		mk("UIStroke", {Color = Color3.fromRGB(40, 40, 44), Thickness = 1}, b)
+		b.MouseButton1Click:Connect(function() if cb then pcall(cb) end end)
+	end
+	local function num(label, def, minV, maxV, cb)
+		local hold = mk("Frame", {
+			Size = UDim2.new(1, -4, 0, 48), BackgroundColor3 = TH.bg, BorderSizePixel = 0,
+			LayoutOrder = #body:GetChildren(),
+		}, body)
+		round(hold, 2)
+		mk("TextLabel", {
+			Size = UDim2.new(1, -10, 0, 14), Position = UDim2.fromOffset(8, 3),
+			BackgroundTransparency = 1, Text = label, Font = Enum.Font.Code, TextSize = 10,
+			TextColor3 = TH.dim, TextXAlignment = Enum.TextXAlignment.Left,
+		}, hold)
+		local box = mk("TextBox", {
+			Size = UDim2.new(1, -64, 0, 22), Position = UDim2.fromOffset(8, 20),
+			BackgroundColor3 = TH.panel, BorderSizePixel = 0, Text = tostring(def),
+			Font = Enum.Font.Code, TextSize = 11, TextColor3 = TH.text, ClearTextOnFocus = false,
+		}, hold)
+		round(box, 2)
+		local go = mk("TextButton", {
+			Size = UDim2.fromOffset(46, 22), Position = UDim2.new(1, -52, 0, 20),
+			BackgroundColor3 = TH.panel, BorderSizePixel = 0, Text = "SET",
+			Font = Enum.Font.Code, TextSize = 10, TextColor3 = TH.accent,
+		}, hold)
+		round(go, 2)
+		local function apply()
+			local n = tonumber(box.Text)
+			if not n then return end
+			n = math.clamp(n, minV, maxV)
+			box.Text = tostring(n)
+			if cb then pcall(cb, n) end
+		end
+		go.MouseButton1Click:Connect(apply)
+		box.FocusLost:Connect(function(e) if e then apply() end end)
+	end
+	local function textIn(label, def, cb)
+		local hold = mk("Frame", {
+			Size = UDim2.new(1, -4, 0, 48), BackgroundColor3 = TH.bg, BorderSizePixel = 0,
+			LayoutOrder = #body:GetChildren(),
+		}, body)
+		round(hold, 2)
+		mk("TextLabel", {
+			Size = UDim2.new(1, -10, 0, 14), Position = UDim2.fromOffset(8, 3),
+			BackgroundTransparency = 1, Text = label, Font = Enum.Font.Code, TextSize = 10,
+			TextColor3 = TH.dim, TextXAlignment = Enum.TextXAlignment.Left,
+		}, hold)
+		local box = mk("TextBox", {
+			Size = UDim2.new(1, -64, 0, 22), Position = UDim2.fromOffset(8, 20),
+			BackgroundColor3 = TH.panel, BorderSizePixel = 0, Text = tostring(def),
+			Font = Enum.Font.Code, TextSize = 11, TextColor3 = TH.text, ClearTextOnFocus = false,
+		}, hold)
+		round(box, 2)
+		local go = mk("TextButton", {
+			Size = UDim2.fromOffset(46, 22), Position = UDim2.new(1, -52, 0, 20),
+			BackgroundColor3 = TH.panel, BorderSizePixel = 0, Text = "SET",
+			Font = Enum.Font.Code, TextSize = 10, TextColor3 = TH.accent,
+		}, hold)
+		round(go, 2)
+		local function apply()
+			if cb then pcall(cb, box.Text) end
+			notify("set", box.Text)
+		end
+		go.MouseButton1Click:Connect(apply)
+		box.FocusLost:Connect(function(e) if e then apply() end end)
+	end
+
+	-- EVENT TAB CONTENT (Blood Moon / Pumpkin)
+	head("BLOOD MOON / PUMPKIN EVENT")
+	toggle("auto candy farm", false, function(on) S.autoCandy = on end)
+	toggle("auto giant pumpkin farm", false, function(on) S.autoGiantPumpkinFarm = on end)
+	toggle("auto feed pumpkin", false, function(on) S.autoFeedPumpkin = on end)
+	toggle("auto open / smash pumpkin", false, function(on) S.autoOpenPumpkin = on end)
+	toggle("auto pumpkin rebirth", false, function(on) S.autoPumpkinRebirth = on end)
+	toggle("auto stalk egg", false, function(on) S.autoStalkEgg = on end)
+	toggle("auto trick or treat", false, function(on) S.autoTrickTreat = on end)
+	toggle("auto go house", false, function(on) S.autoHouse = on end)
+	num("house number (1-8)", 1, 1, 8, function(n) S.houseIndex = n end)
+	toggle("auto hatch battle / manor", false, function(on) S.autoHatchBattle = on end)
+	toggle("auto tp manor", false, function(on) S.autoManor = on end)
+	toggle("auto blood moon hatch", false, function(on) S.autoBloodMoonHatch = on end)
+	toggle("auto spooky upgrade", false, function(on) S.autoSpookyUpgrade = on end)
+	textIn("upgrade name", "Orb Bank", function(t) S.upgradeName = t end)
+	toggle("auto lucky burst", false, function(on) S.autoLuckyBurst = on end)
+	toggle("auto event quests", false, function(on) S.autoEventQuest = on end)
+	toggle("auto season pass claim", false, function(on) S.autoSeasonPass = on end)
+
+	btn("trick or treat once", function() trickOrTreat() notify("event", "knock") end)
+	btn("feed pumpkin once", function() feedPumpkin() notify("event", "feed") end)
+	btn("open pumpkin once", function() openPumpkin() notify("event", "open") end)
+	btn("pumpkin rebirth once", function() pumpkinRebirth() notify("event", "rebirth") end)
+	btn("hatch battle once", function() hatchBattle() notify("event", "battle") end)
+	btn("spooky upgrade once", function() spookyUpgrade() notify("event", S.upgradeName) end)
+	btn("use lucky burst once", function() luckyBurst() notify("event", "burst") end)
+	btn("tp house", function() goHouse() end)
+	btn("tp manor", function() goManor() end)
+
+	head("FARM")
+	toggle("auto farm", false, function(on) S.autoFarm = on end)
+	toggle("auto collect", false, function(on) S.autoCollect = on end)
+	toggle("auto collect orbs / luck", false, function(on)
+		S.autoOrb = on
+		S.autoLuckOrb = on
+	end)
+	toggle("auto combine orbs", false, function(on) S.autoCombineOrb = on end)
+	toggle("auto orb bank / power upgrade", false, function(on) S.autoOrbPower = on end)
+	toggle("auto ultimate", false, function(on) S.autoUltimate = on end)
+	btn("collect orbs once", function() collectOrbLuck() notify("orbs", "picked") end)
+	btn("combine orbs once", function() combineOrbs() notify("orbs", "combine") end)
+	btn("buy orb bank/power once", function() orbPowerUpgrade() notify("orbs", "upgrade") end)
+	num("farm delay", 0.1, 0.05, 2, function(n) S.farmDelay = n end)
+	num("collect range", 100, 20, 500, function(n) S.collectRange = n end)
+	btn("farm once", function() farmTick() end)
+	btn("collect once", function() collectTick() end)
+
+	head("EGGS")
+	toggle("auto hatch", false, function(on) S.autoHatch = on end)
+	textIn("egg name", "Cracked Egg", function(t) S.eggName = t end)
+	num("hatch amount", 1, 1, 50, function(n) S.hatchAmount = n end)
+	num("hatch delay", 0.3, 0.1, 3, function(n) S.hatchDelay = n end)
+	btn("hatch once", function() hatchTick() end)
+
+	head("PETS / REWARDS")
+	toggle("auto equip best", false, function(on) S.autoEquipBest = on end)
+	toggle("auto claim rewards", false, function(on) S.autoClaim = on end)
+	btn("equip best now", function() equipBest() end)
+	btn("claim rewards now", function() claimRewards() end)
+
+	head("MOVEMENT")
+	toggle("speed", false, function(on) applySpeed(on) end)
+	num("speed value", 28, 8, 250, function(n) S.speedVal = n if S.speed then applySpeed(true) end end)
+	toggle("jump boost", false, function(on) applyJump(on) end)
+	num("jump power", 70, 20, 350, function(n) S.jumpVal = n if S.jump then applyJump(true) end end)
+	toggle("fly", false, function(on) applyFly(on) end)
+	num("fly speed", 60, 10, 300, function(n) S.flySpd = n end)
+	toggle("noclip", false, function(on) applyNoclip(on) end)
+	toggle("infinite jump", false, function(on) S.infJump = on end)
+	toggle("click teleport", false, function(on) S.clickTp = on end)
+
+	head("VISUALS / SYSTEM")
+	toggle("player esp", false, function(on) applyEsp(on) end)
+	toggle("fullbright", false, function(on) S.fullbright = on end)
+	toggle("fps boost", false, function(on) applyFpsBoost(on) end)
+	toggle("anti afk", true, function(on) S.antiAfk = on end)
+	btn("refresh remotes", function() notify("remotes", tostring(collectRemotes())) end)
+	btn("rejoin", function()
+		pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP) end)
+	end)
+	btn("copy discord", function()
+		pcall(function() if setclipboard then setclipboard(DISCORD) end end)
+		notify("legacy", "copied")
+	end)
+	btn("unload", function()
+		S.alive = false
+		for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
+		clearEsp()
+		applyFly(false)
+		applyNoclip(false)
+		pcall(function() Gui:Destroy() end)
+	end)
+
+	local dragging, dragStart, startPos
+	Head.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = Main.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then dragging = false end
+			end)
+		end
+	end)
+	UIS.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			local d = input.Position - dragStart
+			Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+		end
+	end)
+	UIS.InputBegan:Connect(function(input, gp)
+		if gp then return end
+		if input.KeyCode == Enum.KeyCode.RightControl then
+			Main.Visible = not Main.Visible
+		end
+	end)
+end
+
+showThemes()
+notify("legacy", "pick theme · key VSP")
